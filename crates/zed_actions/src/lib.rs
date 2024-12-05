@@ -82,6 +82,13 @@ pub struct InlineAssist {
 
 impl_actions!(assistant, [InlineAssist]);
 
+#[derive(Clone, Default, Deserialize, PartialEq)]
+pub struct InlineAssist2 {
+    pub prompt: Option<String>,
+}
+
+impl_actions!(assistant2, [InlineAssist2]);
+
 #[derive(PartialEq, Clone, Deserialize, Default)]
 pub struct OpenRecent {
     #[serde(default)]
