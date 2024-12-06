@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 use std::rc::Rc;
 
-use gpui::{relative, AppContext, CursorStyle, DefiniteLength, MouseButton, Window};
+use gpui::{relative, AnyView, AppContext, CursorStyle, DefiniteLength, MouseButton, Window};
 use gpui::{transparent_black, AnyElement, ClickEvent, Hsla, Rems};
 use smallvec::SmallVec;
 
@@ -150,11 +150,7 @@ pub(crate) struct ButtonLikeStyles {
     pub icon_color: Hsla,
 }
 
-fn element_bg_from_elevation(
-    elevation: Option<ElevationIndex>,
-    window: &mut Window,
-    cx: &mut AppContext,
-) -> Hsla {
+fn element_bg_from_elevation(elevation: Option<ElevationIndex>, cx: &mut AppContext) -> Hsla {
     match elevation {
         Some(ElevationIndex::Background) => cx.theme().colors().element_background,
         Some(ElevationIndex::ElevatedSurface) => cx.theme().colors().elevated_surface_background,
@@ -168,12 +164,11 @@ impl ButtonStyle {
     pub(crate) fn enabled(
         self,
         elevation: Option<ElevationIndex>,
-        window: &mut Window,
         cx: &mut AppContext,
     ) -> ButtonLikeStyles {
         match self {
             ButtonStyle::Filled => ButtonLikeStyles {
-                background: element_bg_from_elevation(elevation, window, cx),
+                background: element_bg_from_elevation(elevation, cx),
                 border_color: transparent_black(),
                 label_color: Color::Default.color(cx),
                 icon_color: Color::Default.color(cx),
@@ -197,12 +192,12 @@ impl ButtonStyle {
     pub(crate) fn hovered(
         self,
         elevation: Option<ElevationIndex>,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut AppContext,
     ) -> ButtonLikeStyles {
         match self {
             ButtonStyle::Filled => {
-                let mut filled_background = element_bg_from_elevation(elevation, window, cx);
+                let mut filled_background = element_bg_from_elevation(elevation, cx);
                 filled_background.fade_out(0.92);
 
                 ButtonLikeStyles {
@@ -235,7 +230,7 @@ impl ButtonStyle {
         }
     }
 
-    pub(crate) fn active(self, window: &mut Window, cx: &mut AppContext) -> ButtonLikeStyles {
+    pub(crate) fn active(self, cx: &mut AppContext) -> ButtonLikeStyles {
         match self {
             ButtonStyle::Filled => ButtonLikeStyles {
                 background: cx.theme().colors().element_active,
@@ -358,14 +353,7 @@ pub struct ButtonLike {
     pub(super) layer: Option<ElevationIndex>,
     size: ButtonSize,
     rounding: Option<ButtonLikeRounding>,
-    tooltip: Option<
-        Box<
-            dyn Fn(
-                &mut Window,
-                &mut AppContext,
-            ) -> Rc<dyn Fn(&mut Window, &mut AppContext) -> AnyElement>,
-        >,
-    >,
+    tooltip: Option<Box<dyn Fn(&mut Window, &mut AppContext) -> AnyView>>,
     cursor_style: CursorStyle,
     on_click: Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut AppContext) + 'static>>,
     children: SmallVec<[AnyElement; 2]>,
@@ -531,29 +519,24 @@ impl RenderOnce for ButtonLike {
                 }
                 ButtonSize::None => this,
             })
-            .bg(style.enabled(self.layer, window, cx).background)
+            .bg(style.enabled(self.layer, cx).background)
             .when(self.disabled, |this| this.cursor_not_allowed())
             .when(!self.disabled, |this| {
                 this.cursor_pointer()
                     .hover(|hover| hover.bg(style.hovered(self.layer, window, cx).background))
-                    .active(|active| active.bg(style.active(window, cx).background))
+                    .active(|active| active.bg(style.active(cx).background))
             })
             .when_some(
                 self.on_click.filter(|_| !self.disabled),
                 |this, on_click| {
-                    this.on_mouse_down(MouseButton::Left, |_, window, cx| window.prevent_default())
+                    this.on_mouse_down(MouseButton::Left, |_, window, _cx| window.prevent_default())
                         .on_click(move |event, window, cx| {
                             cx.stop_propagation();
                             (on_click)(event, window, cx)
                         })
                 },
             )
-            .when_some(self.tooltip, |this, tooltip| {
-                this.tooltip(move |window, cx| {
-                    let render = tooltip(window, cx);
-                    move |window, cx| render(window, cx)
-                })
-            })
+            .when_some(self.tooltip, |this, tooltip| this.tooltip(tooltip))
             .children(self.children)
     }
 }

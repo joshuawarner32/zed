@@ -18,7 +18,6 @@ pub struct Tooltip {
 impl Tooltip {
     pub fn text(
         title: impl Into<SharedString>,
-        window: &mut gpui::Window,
         cx: &mut gpui::AppContext,
     ) -> Rc<dyn Fn(&mut Window, &mut AppContext) -> AnyElement> {
         cx.new_model(|_cx| Self {
@@ -50,10 +49,10 @@ impl Tooltip {
         window: &mut gpui::Window,
         cx: &mut gpui::AppContext,
     ) -> Rc<dyn Fn(&mut Window, &mut AppContext) -> AnyElement> {
-        cx.new_model(|cx| Self {
+        cx.new_model(|_cx| Self {
             title: title.into(),
             meta: None,
-            key_binding: KeyBinding::for_action_in(action, focus_handle, window, cx),
+            key_binding: KeyBinding::for_action_in(action, focus_handle, window),
         })
         .into()
     }
@@ -94,10 +93,10 @@ impl Tooltip {
 impl Render for Tooltip {
     fn render(
         &mut self,
-        window: &mut gpui::Window,
+        _window: &mut gpui::Window,
         cx: &mut gpui::ModelContext<Self>,
     ) -> impl IntoElement {
-        tooltip_container(window, cx, |el, _| {
+        tooltip_container(cx, |el, _| {
             el.child(
                 h_flex()
                     .gap_4()
@@ -114,7 +113,6 @@ impl Render for Tooltip {
 }
 
 pub fn tooltip_container<V>(
-    window: &mut Window,
     cx: &mut ModelContext<V>,
     f: impl FnOnce(Div, &mut ModelContext<V>) -> Div,
 ) -> impl IntoElement {
@@ -123,9 +121,9 @@ pub fn tooltip_container<V>(
     // padding to avoid tooltip appearing right below the mouse cursor
     div().pl_2().pt_2p5().child(
         v_flex()
-            .elevation_2(window, cx)
+            .elevation_2(cx)
             .font(ui_font)
-            .text_ui(window, cx)
+            .text_ui(cx)
             .text_color(cx.theme().colors().text)
             .py_1()
             .px_2()
@@ -160,10 +158,10 @@ impl LinkPreview {
 impl Render for LinkPreview {
     fn render(
         &mut self,
-        window: &mut gpui::Window,
+        _window: &mut gpui::Window,
         cx: &mut gpui::ModelContext<Self>,
     ) -> impl IntoElement {
-        tooltip_container(window, cx, |el, _| {
+        tooltip_container(cx, |el, _| {
             el.child(
                 Label::new(self.link.clone())
                     .size(LabelSize::XSmall)

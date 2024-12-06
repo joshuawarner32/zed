@@ -1,7 +1,5 @@
 use std::rc::Rc;
 
-use gpui::AnyElement;
-
 use crate::prelude::*;
 
 /// The audio status of an player, for use in representing
@@ -81,10 +79,7 @@ impl RenderOnce for AvatarAudioStatusIndicator {
                         .color(Color::Error),
                     )
                     .when_some(self.tooltip, |this, tooltip| {
-                        this.tooltip(move |window, cx| {
-                            let render_tooltip = tooltip(window, cx);
-                            move |window, cx| render_tooltip(window, cx)
-                        })
+                        this.tooltip(move |window, cx| tooltip(window, cx))
                     }),
             )
     }

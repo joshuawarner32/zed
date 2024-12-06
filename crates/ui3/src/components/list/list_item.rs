@@ -2,7 +2,7 @@
 
 use std::{rc::Rc, sync::Arc};
 
-use gpui::{px, AnyElement, ClickEvent, MouseButton, MouseDownEvent, Pixels};
+use gpui::{px, AnyElement, AnyView, ClickEvent, MouseButton, MouseDownEvent, Pixels};
 use smallvec::SmallVec;
 
 use crate::{prelude::*, Disclosure};
@@ -32,17 +32,9 @@ pub struct ListItem {
     end_hover_slot: Option<AnyElement>,
     toggle: Option<bool>,
     inset: bool,
-    on_click: Option<Box<dyn Fn(&ClickEvent, &mut gpui::Window, &mut gpui::AppContext) + 'static>>,
-    on_toggle: Option<Arc<dyn Fn(&ClickEvent, &mut gpui::Window, &mut gpui::AppContext) + 'static>>,
-    tooltip: Option<
-        Box<
-            dyn Fn(
-                    &mut gpui::Window,
-                    &mut gpui::AppContext,
-                ) -> Rc<dyn Fn(&mut Window, &mut AppContext) -> AnyElement>
-                + 'static,
-        >,
-    >,
+    on_click: Option<Box<dyn Fn(&ClickEvent, &mut gpui::Window, &mut gpui::AppContext)>>,
+    on_toggle: Option<Arc<dyn Fn(&ClickEvent, &mut gpui::Window, &mut gpui::AppContext)>>,
+    tooltip: Option<Rc<dyn Fn(&mut gpui::Window, &mut gpui::AppContext) -> AnyView>>,
     on_secondary_mouse_down:
         Option<Box<dyn Fn(&MouseDownEvent, &mut Window, &mut AppContext) + 'static>>,
     children: SmallVec<[AnyElement; 2]>,
@@ -102,13 +94,9 @@ impl ListItem {
 
     pub fn tooltip(
         mut self,
-        tooltip: impl 'static
-            + Fn(
-                &mut gpui::Window,
-                &mut gpui::AppContext,
-            ) -> Rc<dyn Fn(&mut Window, &mut AppContext) -> AnyElement>,
+        tooltip: impl 'static + Fn(&mut gpui::Window, &mut gpui::AppContext) -> AnyView,
     ) -> Self {
-        self.tooltip = Some(Box::new(tooltip));
+        self.tooltip = Some(Rc::new(tooltip));
         self
     }
 
@@ -182,7 +170,7 @@ impl ParentElement for ListItem {
 }
 
 impl RenderOnce for ListItem {
-    fn render(self, window: &mut Window, cx: &mut AppContext) -> impl IntoElement {
+    fn render(self, _window: &mut Window, cx: &mut AppContext) -> impl IntoElement {
         h_flex()
             .id(self.id)
             .w_full()
@@ -246,10 +234,7 @@ impl RenderOnce for ListItem {
                         })
                     })
                     .when_some(self.tooltip, |this, tooltip| {
-                        this.tooltip(move |window, cx| {
-                            let render = tooltip(window, cx);
-                            move |window, cx| render(window, cx)
-                        })
+                        this.tooltip(move |window, cx| tooltip(window, cx))
                     })
                     .map(|this| {
                         if self.inset {

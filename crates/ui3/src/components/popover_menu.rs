@@ -41,7 +41,7 @@ impl<M: FocusableView + EventEmitter<DismissEvent>> PopoverMenuHandle<M> {
         }
     }
 
-    pub fn hide(&self, window: &mut Window, cx: &mut AppContext) {
+    pub fn hide(&self, _window: &mut Window, cx: &mut AppContext) {
         if let Some(state) = self.0.borrow().as_ref() {
             if let Some(menu) = state.menu.borrow().as_ref() {
                 menu.update(cx, |_, cx| cx.emit(DismissEvent));
@@ -169,7 +169,7 @@ impl<M: FocusableView + EventEmitter<DismissEvent>> PopoverMenu<M> {
         })
     }
 
-    fn resolved_offset(&self, window: &Window, cx: &AppContext) -> Point<Pixels> {
+    fn resolved_offset(&self, window: &Window) -> Point<Pixels> {
         self.offset.unwrap_or_else(|| {
             // Default offset = 4px padding + 1px border
             let offset = rems_from_px(5.) * window.rem_size();
@@ -271,7 +271,7 @@ impl<M: FocusableView + EventEmitter<DismissEvent> + Render> Element for Popover
                     if let Some(child_bounds) = element_state.child_bounds {
                         anchored = anchored.position(
                             self.resolved_attach().corner(child_bounds)
-                                + self.resolved_offset(window, cx),
+                                + self.resolved_offset(window),
                         );
                     }
                     let mut element = deferred(anchored.child(div().occlude().child(menu.clone())))

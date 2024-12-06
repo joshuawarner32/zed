@@ -43,7 +43,7 @@ impl Facepile {
 }
 
 impl RenderOnce for Facepile {
-    fn render(self, _window: &mut Window, cx: &mut AppContext) -> impl IntoElement {
+    fn render(self, _window: &mut Window, _cx: &mut AppContext) -> impl IntoElement {
         // Lay the faces out in reverse so they overlap in the desired order (left to right, front to back)
         self.base
             .flex()

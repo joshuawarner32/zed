@@ -16,12 +16,12 @@
 //! constructed by combining these two systems into an all-in-one element.
 
 use crate::{
-    point, px, size, Action, AnyDrag, AnyElement, AnyTooltip, AppContext, Bounds, ClickEvent,
-    DispatchPhase, Element, ElementId, FocusHandle, Global, GlobalElementId, Hitbox, HitboxId,
-    IntoElement, IsZero, KeyContext, KeyDownEvent, KeyUpEvent, LayoutId, ModifiersChangedEvent,
-    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement, Pixels, Point,
-    ScrollWheelEvent, SharedString, Size, Style, StyleRefinement, Styled, Task, TooltipId,
-    Visibility, Window,
+    point, px, size, Action, AnyDrag, AnyElement, AnyTooltip, AnyView, AppContext, Bounds,
+    ClickEvent, DispatchPhase, Element, ElementId, FocusHandle, Global, GlobalElementId, Hitbox,
+    HitboxId, IntoElement, IsZero, KeyContext, KeyDownEvent, KeyUpEvent, LayoutId,
+    ModifiersChangedEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    ParentElement, Pixels, Point, ScrollWheelEvent, SharedString, Size, Style, StyleRefinement,
+    Styled, Task, TooltipId, Visibility, Window,
 };
 use collections::HashMap;
 use refineable::Refineable;
@@ -513,14 +513,10 @@ impl Interactivity {
 
     /// Use the given callback to construct a new tooltip view when the mouse hovers over this element.
     /// The imperative API equivalent to [`InteractiveElement::tooltip`]
-    pub fn tooltip<F, E>(
+    pub fn tooltip(
         &mut self,
-        build_tooltip: impl 'static + Fn(&mut Window, &mut AppContext) -> F,
-    ) where
-        Self: Sized,
-        F: 'static + Fn(&mut Window, &mut AppContext) -> E,
-        E: IntoElement,
-    {
+        build_tooltip: impl 'static + Fn(&mut Window, &mut AppContext) -> AnyView,
+    ) {
         debug_assert!(
             self.tooltip_builder.is_none(),
             "calling tooltip more than once on the same element is not supported"
@@ -1062,14 +1058,12 @@ pub trait StatefulInteractiveElement: InteractiveElement {
 
     /// Use the given callback to construct a new tooltip view when the mouse hovers over this element.
     /// The fluent API equivalent to [`Interactivity::tooltip`]
-    fn tooltip<F, E>(
+    fn tooltip(
         mut self,
-        build_tooltip: impl 'static + Fn(&mut Window, &mut AppContext) -> F,
+        build_tooltip: impl 'static + Fn(&mut Window, &mut AppContext) -> AnyView,
     ) -> Self
     where
         Self: Sized,
-        F: 'static + Fn(&mut Window, &mut AppContext) -> E,
-        E: IntoElement,
     {
         self.interactivity().tooltip(build_tooltip);
         self

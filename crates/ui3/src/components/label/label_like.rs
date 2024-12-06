@@ -1,7 +1,6 @@
 #![allow(missing_docs)]
 
 use gpui::{relative, AnyElement, FontWeight, StyleRefinement, Styled, UnderlineStyle};
-use settings::Settings;
 use smallvec::SmallVec;
 use theme::ThemeSettings;
 
@@ -148,7 +147,7 @@ impl ParentElement for LabelLike {
 }
 
 impl RenderOnce for LabelLike {
-    fn render(self, window: &mut Window, cx: &mut AppContext) -> impl IntoElement {
+    fn render(self, _window: &mut Window, cx: &mut AppContext) -> impl IntoElement {
         use settings::Settings;
         let settings = ThemeSettings::get_global(cx);
 
@@ -159,10 +158,10 @@ impl RenderOnce for LabelLike {
 
         self.base
             .map(|this| match self.size {
-                LabelSize::Large => this.text_ui_lg(window, cx),
-                LabelSize::Default => this.text_ui(window, cx),
-                LabelSize::Small => this.text_ui_sm(window, cx),
-                LabelSize::XSmall => this.text_ui_xs(window, cx),
+                LabelSize::Large => this.text_ui_lg(cx),
+                LabelSize::Default => this.text_ui(cx),
+                LabelSize::Small => this.text_ui_sm(cx),
+                LabelSize::XSmall => this.text_ui_xs(cx),
             })
             .when(self.line_height_style == LineHeightStyle::UiLabel, |this| {
                 this.line_height(relative(1.))

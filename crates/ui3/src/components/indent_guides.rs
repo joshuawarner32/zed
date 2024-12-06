@@ -31,8 +31,7 @@ impl IndentGuideColors {
 pub struct IndentGuides {
     colors: IndentGuideColors,
     indent_size: Pixels,
-    compute_indents_fn:
-        Box<dyn Fn(Range<usize>, &mut Window, &mut AppContext) -> SmallVec<[usize; 64]>>,
+    compute_indents_fn: Box<dyn Fn(Range<usize>, &mut AppContext) -> SmallVec<[usize; 64]>>,
     render_fn: Option<
         Box<
             dyn Fn(
@@ -52,11 +51,9 @@ pub fn indent_guides<V: Render>(
     compute_indents_fn: impl Fn(&mut V, Range<usize>, &mut gpui::ModelContext<V>) -> SmallVec<[usize; 64]>
         + 'static,
 ) -> IndentGuides {
-    let compute_indents_fn = Box::new(
-        move |range, window: &mut gpui::Window, cx: &mut gpui::AppContext| {
-            view.update(cx, |this, cx| compute_indents_fn(this, range, cx))
-        },
-    );
+    let compute_indents_fn = Box::new(move |range, cx: &mut gpui::AppContext| {
+        view.update(cx, |this, cx| compute_indents_fn(this, range, cx))
+    });
     IndentGuides {
         colors,
         indent_size,
@@ -155,7 +152,7 @@ mod uniform_list {
             if includes_trailing_indent {
                 visible_range.end += 1;
             }
-            let visible_entries = &(self.compute_indents_fn)(visible_range.clone(), window, cx);
+            let visible_entries = &(self.compute_indents_fn)(visible_range.clone(), cx);
             let indent_guides = compute_indent_guides(
                 &visible_entries,
                 visible_range.start,
@@ -240,7 +237,7 @@ mod uniform_list {
             _bounds: Bounds<Pixels>,
             _request_layout: &mut Self::RequestLayoutState,
             window: &mut gpui::Window,
-            cx: &mut gpui::AppContext,
+            _cx: &mut gpui::AppContext,
         ) -> Self::PrepaintState {
             if let Some(on_hovered_indent_guide_click) = self.on_hovered_indent_guide_click.clone()
             {
@@ -266,7 +263,7 @@ mod uniform_list {
             _request_layout: &mut Self::RequestLayoutState,
             prepaint: &mut Self::PrepaintState,
             window: &mut gpui::Window,
-            cx: &mut gpui::AppContext,
+            _cx: &mut gpui::AppContext,
         ) {
             match prepaint {
                 IndentGuidesElementPrepaintState::Static => {
