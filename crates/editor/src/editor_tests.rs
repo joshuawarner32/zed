@@ -14156,20 +14156,14 @@ async fn test_multi_buffer_folding_with_fewer_excerpts(cx: &mut gpui::TestAppCon
         full_text,
     );
 
-    dbg!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
     multi_buffer_editor.update(cx, |editor, cx| {
         editor.fold_buffer(buffer_1.read(cx).remote_id(), cx)
     });
     assert_eq!(
         multi_buffer_editor.update(cx, |editor, cx| editor.display_text(cx)),
-        "\n\n\n\n\n4444\n5555\n6666\n\n\n\n\n7777\n8888\n9999\n",
+        "\n\n\n\n\n4444\n5555\n6666\n\n\n\n\n\n\n\n\n7777\n8888\n9999\n",
         "After folding the first buffer, its text should not be displayed"
     );
-
-    // TODO kb remove
-    if true {
-        return;
-    }
 
     multi_buffer_editor.update(cx, |editor, cx| {
         editor.fold_buffer(buffer_2.read(cx).remote_id(), cx)
@@ -14180,8 +14174,19 @@ async fn test_multi_buffer_folding_with_fewer_excerpts(cx: &mut gpui::TestAppCon
         "After folding the second buffer, its text should not be displayed"
     );
 
+    dbg!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
     multi_buffer_editor.update(cx, |editor, cx| {
-        editor.fold_buffer(buffer_3.read(cx).remote_id(), cx)
+        editor.unfold_buffer(buffer_1.read(cx).remote_id(), cx)
+    });
+    assert_eq!(
+        multi_buffer_editor.update(cx, |editor, cx| editor.display_text(cx)),
+        "\n\n\n1111\n2222\n3333\n\n\n\n\n\n\n\n\n\n7777\n8888\n9999\n",
+        "After folding the second buffer, its text should not be displayed"
+    );
+
+    multi_buffer_editor.update(cx, |editor, cx| {
+        editor.fold_buffer(buffer_1.read(cx).remote_id(), cx);
+        editor.fold_buffer(buffer_3.read(cx).remote_id(), cx);
     });
     assert_eq!(
         multi_buffer_editor.update(cx, |editor, cx| editor.display_text(cx)),

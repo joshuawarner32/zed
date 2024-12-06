@@ -1559,11 +1559,11 @@ impl MultiBuffer {
                 cursor.seek_forward(&Some(locator), Bias::Left, &());
                 cursor.item().and_then(|excerpt| {
                     if excerpt.locator == *locator {
-                        let excerpt_start = cursor.start().1;
-                        let excerpt_end = excerpt_start + excerpt.text_summary.lines;
-                        Some(excerpt_start..excerpt_end)
+                        // let excerpt_start = cursor.start().1;
+                        // let excerpt_end = excerpt_start + excerpt.text_summary.lines;
+                        // Some(excerpt_start..excerpt_end)
                         // TODO kb
-                        // Some(cursor.start().1..cursor.end(&()).1)
+                        Some(cursor.start().1..cursor.end(&()).1)
                     } else {
                         None
                     }

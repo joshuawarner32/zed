@@ -15,7 +15,7 @@ use std::{
     cell::RefCell,
     cmp::{self, Ordering},
     fmt::Debug,
-    ops::{Deref, DerefMut, Range, RangeBounds},
+    ops::{Deref, DerefMut, Range},
     sync::{
         atomic::{AtomicUsize, Ordering::SeqCst},
         Arc,
@@ -580,7 +580,7 @@ impl BlockMap {
                 println!("item after calling next {:?}", cursor.item());
 
                 // Extend edit to the end of the discarded transform so it is reconstructed in full
-                let transform_rows_after_edit = cursor.start().0 - old_end.0;
+                let transform_rows_after_edit = dbg!(cursor.start().0) - old_end.0;
                 old_end.0 += transform_rows_after_edit;
                 new_end.0 += transform_rows_after_edit;
 
@@ -616,7 +616,6 @@ impl BlockMap {
             // Find the blocks within this edited region.
             let new_buffer_start =
                 wrap_snapshot.to_point(WrapPoint::new(new_start.0, 0), Bias::Left);
-            let start_bound = Bound::Included(new_buffer_start);
             let start_block_ix =
                 match self.custom_blocks[last_block_ix..].binary_search_by(|probe| {
                     probe
@@ -670,7 +669,7 @@ impl BlockMap {
                     self.excerpt_header_height,
                     buffer,
                     &self.folded_buffers,
-                    (start_bound, end_bound),
+                    dbg!(new_buffer_start, end_bound),
                     wrap_snapshot,
                 ));
             }
@@ -748,24 +747,32 @@ impl BlockMap {
         self.show_excerpt_controls
     }
 
-    fn header_and_footer_blocks<'a, R, T>(
+    fn header_and_footer_blocks<'a>(
         show_excerpt_controls: bool,
         excerpt_footer_height: u32,
         buffer_header_height: u32,
         excerpt_header_height: u32,
         buffer: &'a multi_buffer::MultiBufferSnapshot,
         folded_buffers: &'a HashSet<BufferId>,
-        range: R,
+        range: (Point, Bound<Point>),
         wrap_snapshot: &'a WrapSnapshot,
-    ) -> impl Iterator<Item = (BlockPlacement<WrapRow>, Block)> + 'a
-    where
-        R: RangeBounds<T>,
-        T: multi_buffer::ToOffset,
-    {
-        let mut boundaries = buffer.excerpt_boundaries_in_range(range).peekable();
+    ) -> impl Iterator<Item = (BlockPlacement<WrapRow>, Block)> + 'a {
+        let mut boundaries = buffer
+            .excerpt_boundaries_in_range::<_, Point>((Bound::Included(range.0), Bound::Unbounded))
+            .peekable();
 
         std::iter::from_fn(move || {
             let excerpt_boundary = boundaries.next()?;
+            match (excerpt_boundary.row.0, range.1) {
+                (row, Bound::Included(end)) if row >= end.row => {
+                    return None;
+                }
+                (row, Bound::Excluded(end)) if row > end.row => {
+                    return None;
+                }
+                _ => {}
+            }
+
             let wrap_row = if excerpt_boundary.next.is_some() {
                 wrap_snapshot.make_wrap_point(Point::new(excerpt_boundary.row.0, 0), Bias::Left)
             } else {
@@ -805,7 +812,7 @@ impl BlockMap {
             if let Some(new_buffer_id) = new_buffer_id {
                 if folded_buffers.contains(&new_buffer_id) {
                     let mut next_excerpt = excerpt_boundary.next;
-                    let mut wrap_end_row = wrap_row;
+                    let mut wrap_end_row = dbg!(wrap_row);
                     while let Some(next_boundary) = boundaries.peek() {
                         wrap_end_row = wrap_snapshot
                             .make_wrap_point(Point::new(next_boundary.row.0, 0), Bias::Left)
@@ -814,7 +821,8 @@ impl BlockMap {
                         if let Some(next_excerpt) = &next_boundary.next {
                             if next_excerpt.buffer_id != new_buffer_id {
                                 // TODO kb works but seems like a hack
-                                // wrap_end_row = wrap_end_row.saturating_sub(1);
+                                wrap_end_row = wrap_end_row.saturating_sub(1);
+                                dbg!(wrap_end_row);
                                 break;
                             }
                         }
@@ -823,7 +831,7 @@ impl BlockMap {
                     }
 
                     return Some((
-                        BlockPlacement::Replace(WrapRow(wrap_row)..WrapRow(wrap_end_row)),
+                        BlockPlacement::Replace(WrapRow(wrap_row)..dbg!(WrapRow(wrap_end_row))),
                         Block::ExcerptBoundary {
                             prev_excerpt,
                             next_excerpt,
@@ -2592,7 +2600,7 @@ mod tests {
                 excerpt_header_height,
                 &buffer_snapshot,
                 &HashSet::default(),
-                0..,
+                (Point::zero(), Bound::Unbounded),
                 &wraps_snapshot,
             ));
 
