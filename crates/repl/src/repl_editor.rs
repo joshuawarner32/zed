@@ -17,7 +17,7 @@ use crate::{
 
 pub fn assign_kernelspec(
     kernel_specification: KernelSpecification,
-    weak_editor: WeakView<Editor>,
+    weak_editor: WeakModel<Editor>,
     cx: &mut WindowContext,
 ) -> Result<()> {
     let store = ReplStore::global(cx);
@@ -45,7 +45,7 @@ pub fn assign_kernelspec(
     }
 
     let session = cx
-        .new_view(|cx| Session::new(weak_editor.clone(), fs, telemetry, kernel_specification, cx));
+        .new_model(|cx| Session::new(weak_editor.clone(), fs, telemetry, kernel_specification, cx));
 
     weak_editor
         .update(cx, |_editor, cx| {
@@ -72,7 +72,7 @@ pub fn assign_kernelspec(
     Ok(())
 }
 
-pub fn run(editor: WeakView<Editor>, move_down: bool, cx: &mut WindowContext) -> Result<()> {
+pub fn run(editor: WeakModel<Editor>, move_down: bool, cx: &mut WindowContext) -> Result<()> {
     let store = ReplStore::global(cx);
     if !store.read(cx).is_enabled() {
         return Ok(());
@@ -113,7 +113,7 @@ pub fn run(editor: WeakView<Editor>, move_down: bool, cx: &mut WindowContext) ->
         } else {
             let weak_editor = editor.downgrade();
             let session = cx
-                .new_view(|cx| Session::new(weak_editor, fs, telemetry, kernel_specification, cx));
+                .new_model(|cx| Session::new(weak_editor, fs, telemetry, kernel_specification, cx));
 
             editor.update(cx, |_editor, cx| {
                 cx.notify();
@@ -161,14 +161,14 @@ pub fn run(editor: WeakView<Editor>, move_down: bool, cx: &mut WindowContext) ->
 
 #[allow(clippy::large_enum_variant)]
 pub enum SessionSupport {
-    ActiveSession(View<Session>),
+    ActiveSession(Model<Session>),
     Inactive(KernelSpecification),
     RequiresSetup(LanguageName),
     Unsupported,
 }
 
 pub fn worktree_id_for_editor(
-    editor: WeakView<Editor>,
+    editor: WeakModel<Editor>,
     cx: &mut WindowContext,
 ) -> Option<WorktreeId> {
     editor.upgrade().and_then(|editor| {
@@ -183,7 +183,7 @@ pub fn worktree_id_for_editor(
     })
 }
 
-pub fn session(editor: WeakView<Editor>, cx: &mut WindowContext) -> SessionSupport {
+pub fn session(editor: WeakModel<Editor>, cx: &mut WindowContext) -> SessionSupport {
     let store = ReplStore::global(cx);
     let entity_id = editor.entity_id();
 
@@ -217,7 +217,7 @@ pub fn session(editor: WeakView<Editor>, cx: &mut WindowContext) -> SessionSuppo
     }
 }
 
-pub fn clear_outputs(editor: WeakView<Editor>, cx: &mut WindowContext) {
+pub fn clear_outputs(editor: WeakModel<Editor>, cx: &mut WindowContext) {
     let store = ReplStore::global(cx);
     let entity_id = editor.entity_id();
     let Some(session) = store.read(cx).get_session(entity_id).cloned() else {
@@ -229,7 +229,7 @@ pub fn clear_outputs(editor: WeakView<Editor>, cx: &mut WindowContext) {
     });
 }
 
-pub fn interrupt(editor: WeakView<Editor>, cx: &mut WindowContext) {
+pub fn interrupt(editor: WeakModel<Editor>, cx: &mut WindowContext) {
     let store = ReplStore::global(cx);
     let entity_id = editor.entity_id();
     let Some(session) = store.read(cx).get_session(entity_id).cloned() else {
@@ -242,7 +242,7 @@ pub fn interrupt(editor: WeakView<Editor>, cx: &mut WindowContext) {
     });
 }
 
-pub fn shutdown(editor: WeakView<Editor>, cx: &mut WindowContext) {
+pub fn shutdown(editor: WeakModel<Editor>, cx: &mut WindowContext) {
     let store = ReplStore::global(cx);
     let entity_id = editor.entity_id();
     let Some(session) = store.read(cx).get_session(entity_id).cloned() else {
@@ -255,7 +255,7 @@ pub fn shutdown(editor: WeakView<Editor>, cx: &mut WindowContext) {
     });
 }
 
-pub fn restart(editor: WeakView<Editor>, cx: &mut WindowContext) {
+pub fn restart(editor: WeakModel<Editor>, cx: &mut WindowContext) {
     let Some(editor) = editor.upgrade() else {
         return;
     };
@@ -276,7 +276,7 @@ pub fn restart(editor: WeakView<Editor>, cx: &mut WindowContext) {
     });
 }
 
-pub fn setup_editor_session_actions(editor: &mut Editor, editor_handle: WeakView<Editor>) {
+pub fn setup_editor_session_actions(editor: &mut Editor, editor_handle: WeakModel<Editor>) {
     editor
         .register_action({
             let editor_handle = editor_handle.clone();
@@ -452,7 +452,7 @@ fn language_supported(language: &Arc<Language>) -> bool {
     }
 }
 
-fn get_language(editor: WeakView<Editor>, cx: &mut WindowContext) -> Option<Arc<Language>> {
+fn get_language(editor: WeakModel<Editor>, cx: &mut WindowContext) -> Option<Arc<Language>> {
     editor
         .update(cx, |editor, cx| {
             let selection = editor.selections.newest::<usize>(cx);

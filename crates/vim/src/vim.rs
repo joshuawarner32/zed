@@ -26,7 +26,7 @@ use editor::{
 };
 use gpui::{
     actions, impl_actions, Action, AppContext, Entity, EventEmitter, KeyContext, KeystrokeEvent,
-    Render, Subscription, View, ViewContext, WeakView,
+    ModelContext, Render, Subscription, View, WeakView,
 };
 use insert::{NormalBefore, TemporaryNormal};
 use language::{CursorShape, Point, Selection, SelectionGoal, TransactionId};
@@ -89,7 +89,7 @@ pub fn init(cx: &mut AppContext) {
     VimSettings::register(cx);
     VimGlobals::register(cx);
 
-    cx.observe_new_views(|editor: &mut Editor, cx| Vim::register(editor, cx))
+    cx.observe_new_models(|editor: &mut Editor, cx| Vim::register(editor, cx))
         .detach();
 
     cx.observe_new_views(|workspace: &mut Workspace, _| {
@@ -126,7 +126,7 @@ pub fn init(cx: &mut AppContext) {
 
 #[derive(Clone)]
 pub(crate) struct VimAddon {
-    pub(crate) view: View<Vim>,
+    pub(crate) view: Model<Vim>,
 }
 
 impl editor::Addon for VimAddon {
@@ -166,7 +166,7 @@ pub(crate) struct Vim {
     selected_register: Option<char>,
     pub search: SearchState,
 
-    editor: WeakView<Editor>,
+    editor: WeakModel<Editor>,
 
     _subscriptions: Vec<Subscription>,
 }
@@ -175,7 +175,7 @@ pub(crate) struct Vim {
 // This means it needs a VisualContext. The easiest way to satisfy that constraint is
 // to make Vim a "View" that is just never actually rendered.
 impl Render for Vim {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         gpui::Empty
     }
 }
@@ -189,10 +189,10 @@ impl Vim {
     /// The namespace for Vim actions.
     const NAMESPACE: &'static str = "vim";
 
-    pub fn new(cx: &mut ViewContext<Editor>) -> View<Self> {
+    pub fn new(cx: &mut ModelContext<Editor>) -> Model<Self> {
         let editor = cx.view().clone();
 
-        cx.new_view(|cx| Vim {
+        cx.new_model(|cx| Vim {
             mode: Mode::Normal,
             last_mode: Mode::Normal,
             temp_mode: false,
@@ -223,7 +223,7 @@ impl Vim {
         })
     }
 
-    fn register(editor: &mut Editor, cx: &mut ViewContext<Editor>) {
+    fn register(editor: &mut Editor, cx: &mut ModelContext<Editor>) {
         if !editor.use_modal_editing() {
             return;
         }
@@ -260,7 +260,7 @@ impl Vim {
         }
     }
 
-    fn activate(editor: &mut Editor, cx: &mut ViewContext<Editor>) {
+    fn activate(editor: &mut Editor, cx: &mut ModelContext<Editor>) {
         let vim = Vim::new(cx);
 
         editor.register_addon(VimAddon { view: vim.clone() });
@@ -305,7 +305,7 @@ impl Vim {
         })
     }
 
-    fn deactivate(editor: &mut Editor, cx: &mut ViewContext<Editor>) {
+    fn deactivate(editor: &mut Editor, cx: &mut ModelContext<Editor>) {
         editor.set_cursor_shape(CursorShape::Bar, cx);
         editor.set_clip_at_line_ends(false, cx);
         editor.set_collapse_matches(false);
@@ -324,24 +324,24 @@ impl Vim {
     /// Register an action on the editor.
     pub fn action<A: Action>(
         editor: &mut Editor,
-        cx: &mut ViewContext<Vim>,
-        f: impl Fn(&mut Vim, &A, &mut ViewContext<Vim>) + 'static,
+        cx: &mut ModelContext<Vim>,
+        f: impl Fn(&mut Vim, &A, &mut ModelContext<Vim>) + 'static,
     ) {
         let subscription = editor.register_action(cx.listener(f));
         cx.on_release(|_, _, _| drop(subscription)).detach();
     }
 
-    pub fn editor(&self) -> Option<View<Editor>> {
+    pub fn editor(&self) -> Option<Model<Editor>> {
         self.editor.upgrade()
     }
 
-    pub fn workspace(&self, cx: &mut ViewContext<Self>) -> Option<View<Workspace>> {
+    pub fn workspace(&self, cx: &mut ModelContext<Self>) -> Option<Model<Workspace>> {
         cx.window_handle()
             .downcast::<Workspace>()
             .and_then(|handle| handle.root(cx).ok())
     }
 
-    pub fn pane(&self, cx: &mut ViewContext<Self>) -> Option<View<Pane>> {
+    pub fn pane(&self, cx: &mut ModelContext<Self>) -> Option<Model<Pane>> {
         self.workspace(cx)
             .map(|workspace| workspace.read(cx).focused_pane(cx))
     }
@@ -352,7 +352,11 @@ impl Vim {
 
     /// Called whenever an keystroke is typed so vim can observe all actions
     /// and keystrokes accordingly.
-    fn observe_keystrokes(&mut self, keystroke_event: &KeystrokeEvent, cx: &mut ViewContext<Self>) {
+    fn observe_keystrokes(
+        &mut self,
+        keystroke_event: &KeystrokeEvent,
+        cx: &mut ModelContext<Self>,
+    ) {
         if self.exit_temporary_mode {
             self.exit_temporary_mode = false;
             // Don't switch to insert mode if the action is temporary_normal.
@@ -386,7 +390,7 @@ impl Vim {
         }
     }
 
-    fn handle_editor_event(&mut self, event: &EditorEvent, cx: &mut ViewContext<Self>) {
+    fn handle_editor_event(&mut self, event: &EditorEvent, cx: &mut ModelContext<Self>) {
         match event {
             EditorEvent::Focused => self.focused(true, cx),
             EditorEvent::Blurred => self.blurred(cx),
@@ -414,7 +418,7 @@ impl Vim {
         }
     }
 
-    fn push_operator(&mut self, operator: Operator, cx: &mut ViewContext<Self>) {
+    fn push_operator(&mut self, operator: Operator, cx: &mut ModelContext<Self>) {
         if matches!(
             operator,
             Operator::Change
@@ -447,7 +451,7 @@ impl Vim {
         self.sync_vim_settings(cx);
     }
 
-    pub fn switch_mode(&mut self, mode: Mode, leave_selections: bool, cx: &mut ViewContext<Self>) {
+    pub fn switch_mode(&mut self, mode: Mode, leave_selections: bool, cx: &mut ModelContext<Self>) {
         if self.temp_mode && mode == Mode::Normal {
             self.temp_mode = false;
             self.switch_mode(Mode::Normal, leave_selections, cx);
@@ -551,7 +555,7 @@ impl Vim {
         });
     }
 
-    fn take_count(&mut self, cx: &mut ViewContext<Self>) -> Option<usize> {
+    fn take_count(&mut self, cx: &mut ModelContext<Self>) -> Option<usize> {
         let global_state = cx.global_mut::<VimGlobals>();
         if global_state.dot_replaying {
             return global_state.recorded_count;
@@ -651,7 +655,7 @@ impl Vim {
         context.set("vim_operator", operator_id);
     }
 
-    fn focused(&mut self, preserve_selection: bool, cx: &mut ViewContext<Self>) {
+    fn focused(&mut self, preserve_selection: bool, cx: &mut ModelContext<Self>) {
         let Some(editor) = self.editor() else {
             return;
         };
@@ -708,7 +712,7 @@ impl Vim {
         Vim::globals(cx).focused_vim = Some(cx.view().downgrade());
     }
 
-    fn blurred(&mut self, cx: &mut ViewContext<Self>) {
+    fn blurred(&mut self, cx: &mut ModelContext<Self>) {
         self.stop_recording_immediately(NormalBefore.boxed_clone(), cx);
         self.store_visual_marks(cx);
         self.clear_operator(cx);
@@ -717,7 +721,7 @@ impl Vim {
         });
     }
 
-    fn cursor_shape_changed(&mut self, cx: &mut ViewContext<Self>) {
+    fn cursor_shape_changed(&mut self, cx: &mut ModelContext<Self>) {
         self.update_editor(cx, |vim, editor, cx| {
             editor.set_cursor_shape(vim.cursor_shape(), cx);
         });
@@ -725,14 +729,14 @@ impl Vim {
 
     fn update_editor<S>(
         &mut self,
-        cx: &mut ViewContext<Self>,
-        update: impl FnOnce(&mut Self, &mut Editor, &mut ViewContext<Editor>) -> S,
+        cx: &mut ModelContext<Self>,
+        update: impl FnOnce(&mut Self, &mut Editor, &mut ModelContext<Editor>) -> S,
     ) -> Option<S> {
         let editor = self.editor.upgrade()?;
         Some(editor.update(cx, |editor, cx| update(self, editor, cx)))
     }
 
-    fn editor_selections(&mut self, cx: &mut ViewContext<Self>) -> Vec<Range<Anchor>> {
+    fn editor_selections(&mut self, cx: &mut ModelContext<Self>) -> Vec<Range<Anchor>> {
         self.update_editor(cx, |_, editor, _| {
             editor
                 .selections
@@ -746,7 +750,7 @@ impl Vim {
 
     /// When doing an action that modifies the buffer, we start recording so that `.`
     /// will replay the action.
-    pub fn start_recording(&mut self, cx: &mut ViewContext<Self>) {
+    pub fn start_recording(&mut self, cx: &mut ModelContext<Self>) {
         Vim::update_globals(cx, |globals, cx| {
             if !globals.dot_replaying {
                 globals.dot_recording = true;
@@ -789,7 +793,7 @@ impl Vim {
         })
     }
 
-    pub fn stop_replaying(&mut self, cx: &mut ViewContext<Self>) {
+    pub fn stop_replaying(&mut self, cx: &mut ModelContext<Self>) {
         let globals = Vim::globals(cx);
         globals.dot_replaying = false;
         if let Some(replayer) = globals.replayer.take() {
@@ -800,7 +804,7 @@ impl Vim {
     /// When finishing an action that modifies the buffer, stop recording.
     /// as you usually call this within a keystroke handler we also ensure that
     /// the current action is recorded.
-    pub fn stop_recording(&mut self, cx: &mut ViewContext<Self>) {
+    pub fn stop_recording(&mut self, cx: &mut ModelContext<Self>) {
         let globals = Vim::globals(cx);
         if globals.dot_recording {
             globals.stop_recording_after_next_action = true;
@@ -815,7 +819,7 @@ impl Vim {
     pub fn stop_recording_immediately(
         &mut self,
         action: Box<dyn Action>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         let globals = Vim::globals(cx);
         if globals.dot_recording {
@@ -830,12 +834,12 @@ impl Vim {
     }
 
     /// Explicitly record one action (equivalents to start_recording and stop_recording)
-    pub fn record_current_action(&mut self, cx: &mut ViewContext<Self>) {
+    pub fn record_current_action(&mut self, cx: &mut ModelContext<Self>) {
         self.start_recording(cx);
         self.stop_recording(cx);
     }
 
-    fn push_count_digit(&mut self, number: usize, cx: &mut ViewContext<Self>) {
+    fn push_count_digit(&mut self, number: usize, cx: &mut ModelContext<Self>) {
         if self.active_operator().is_some() {
             let post_count = self.post_count.unwrap_or(0);
 
@@ -859,7 +863,7 @@ impl Vim {
         self.sync_vim_settings(cx)
     }
 
-    fn select_register(&mut self, register: Arc<str>, cx: &mut ViewContext<Self>) {
+    fn select_register(&mut self, register: Arc<str>, cx: &mut ModelContext<Self>) {
         if register.chars().count() == 1 {
             self.selected_register
                 .replace(register.chars().next().unwrap());
@@ -872,14 +876,14 @@ impl Vim {
         self.operator_stack.pop()
     }
 
-    fn pop_operator(&mut self, cx: &mut ViewContext<Self>) -> Operator {
+    fn pop_operator(&mut self, cx: &mut ModelContext<Self>) -> Operator {
         let popped_operator = self.operator_stack.pop()
             .expect("Operator popped when no operator was on the stack. This likely means there is an invalid keymap config");
         self.sync_vim_settings(cx);
         popped_operator
     }
 
-    fn clear_operator(&mut self, cx: &mut ViewContext<Self>) {
+    fn clear_operator(&mut self, cx: &mut ModelContext<Self>) {
         self.take_count(cx);
         self.selected_register.take();
         self.operator_stack.clear();
@@ -890,7 +894,7 @@ impl Vim {
         self.operator_stack.last().cloned()
     }
 
-    fn transaction_begun(&mut self, transaction_id: TransactionId, _: &mut ViewContext<Self>) {
+    fn transaction_begun(&mut self, transaction_id: TransactionId, _: &mut ModelContext<Self>) {
         let mode = if (self.mode == Mode::Insert
             || self.mode == Mode::Replace
             || self.mode == Mode::Normal)
@@ -906,7 +910,7 @@ impl Vim {
         }
     }
 
-    fn transaction_undone(&mut self, transaction_id: &TransactionId, cx: &mut ViewContext<Self>) {
+    fn transaction_undone(&mut self, transaction_id: &TransactionId, cx: &mut ModelContext<Self>) {
         match self.mode {
             Mode::VisualLine | Mode::VisualBlock | Mode::Visual => {
                 self.update_editor(cx, |vim, editor, cx| {
@@ -951,7 +955,7 @@ impl Vim {
         }
     }
 
-    fn local_selections_changed(&mut self, cx: &mut ViewContext<Self>) {
+    fn local_selections_changed(&mut self, cx: &mut ModelContext<Self>) {
         let Some(editor) = self.editor() else { return };
 
         if editor.read(cx).leader_peer_id().is_some() {
@@ -984,7 +988,7 @@ impl Vim {
         }
     }
 
-    fn input_ignored(&mut self, text: Arc<str>, cx: &mut ViewContext<Self>) {
+    fn input_ignored(&mut self, text: Arc<str>, cx: &mut ModelContext<Self>) {
         if text.is_empty() {
             return;
         }
@@ -1104,7 +1108,7 @@ impl Vim {
         }
     }
 
-    fn sync_vim_settings(&mut self, cx: &mut ViewContext<Self>) {
+    fn sync_vim_settings(&mut self, cx: &mut ModelContext<Self>) {
         self.update_editor(cx, |vim, editor, cx| {
             editor.set_cursor_shape(vim.cursor_shape(), cx);
             editor.set_clip_at_line_ends(vim.clip_at_line_ends(), cx);

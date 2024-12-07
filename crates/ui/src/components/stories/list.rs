@@ -7,7 +7,11 @@ use crate::{List, ListItem};
 pub struct ListStory;
 
 impl Render for ListStory {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(
+        &mut self,
+        _window: &mut Window,
+        _cx: &mut gpui::ModelContext<Self>,
+    ) -> impl IntoElement {
         Story::container()
             .child(Story::title_for::<List>())
             .child(Story::label("Default"))

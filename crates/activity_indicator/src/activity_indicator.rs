@@ -5,7 +5,7 @@ use futures::StreamExt;
 use gpui::{
     actions, percentage, Animation, AnimationExt as _, AppContext, CursorStyle, EventEmitter,
     InteractiveElement as _, Model, ParentElement as _, Render, SharedString,
-    StatefulInteractiveElement, Styled, Transformation, View, ViewContext, VisualContext as _,
+    StatefulInteractiveElement, Styled, Transformation, View, ModelContext, VisualContext as _,
 };
 use language::{LanguageRegistry, LanguageServerBinaryStatus, LanguageServerId};
 use lsp::LanguageServerName;
@@ -46,18 +46,18 @@ struct PendingWork<'a> {
 struct Content {
     icon: Option<gpui::AnyElement>,
     message: String,
-    on_click: Option<Arc<dyn Fn(&mut ActivityIndicator, &mut ViewContext<ActivityIndicator>)>>,
+    on_click: Option<Arc<dyn Fn(&mut ActivityIndicator, &mut ModelContext<ActivityIndicator>)>>,
 }
 
 impl ActivityIndicator {
     pub fn new(
         workspace: &mut Workspace,
         languages: Arc<LanguageRegistry>,
-        cx: &mut ViewContext<Workspace>,
-    ) -> View<ActivityIndicator> {
+        cx: &mut ModelContext<Workspace>,
+    ) -> Model<ActivityIndicator> {
         let project = workspace.project().clone();
         let auto_updater = AutoUpdater::get(cx);
-        let this = cx.new_view(|cx: &mut ViewContext<Self>| {
+        let this = cx.new_model(|cx: &mut ModelContext<Self>| {
             let mut status_events = languages.language_server_binary_statuses();
             cx.spawn(|this, mut cx| async move {
                 while let Some((name, status)) = status_events.next().await {
@@ -105,7 +105,7 @@ impl ActivityIndicator {
                     })?;
                     workspace.update(&mut cx, |workspace, cx| {
                         workspace.add_item_to_active_pane(
-                            Box::new(cx.new_view(|cx| {
+                            Box::new(cx.new_model(|cx| {
                                 Editor::for_buffer(buffer, Some(project.clone()), cx)
                             })),
                             None,
@@ -123,7 +123,7 @@ impl ActivityIndicator {
         this
     }
 
-    fn show_error_message(&mut self, _: &ShowErrorMessage, cx: &mut ViewContext<Self>) {
+    fn show_error_message(&mut self, _: &ShowErrorMessage, cx: &mut ModelContext<Self>) {
         self.statuses.retain(|status| {
             if let LanguageServerBinaryStatus::Failed { error } = &status.status {
                 cx.emit(Event::ShowError {
@@ -139,7 +139,7 @@ impl ActivityIndicator {
         cx.notify();
     }
 
-    fn dismiss_error_message(&mut self, _: &DismissErrorMessage, cx: &mut ViewContext<Self>) {
+    fn dismiss_error_message(&mut self, _: &DismissErrorMessage, cx: &mut ModelContext<Self>) {
         if let Some(updater) = &self.auto_updater {
             updater.update(cx, |updater, cx| {
                 updater.dismiss_error(cx);
@@ -183,7 +183,7 @@ impl ActivityIndicator {
         self.project.read(cx).shell_environment_errors(cx)
     }
 
-    fn content_to_render(&mut self, cx: &mut ViewContext<Self>) -> Option<Content> {
+    fn content_to_render(&mut self, cx: &mut ModelContext<Self>) -> Option<Content> {
         // Show if any direnv calls failed
         if let Some((&worktree_id, error)) = self.pending_environment_errors(cx).next() {
             return Some(Content {
@@ -442,8 +442,12 @@ impl ActivityIndicator {
         None
     }
 
-    fn toggle_language_server_work_context_menu(&mut self, cx: &mut ViewContext<Self>) {
-        self.context_menu_handle.toggle(cx);
+    fn toggle_language_server_work_context_menu(
+        &mut self,
+        window: &mut Window,
+        cx: &mut ModelContext<Self>,
+    ) {
+        self.context_menu_handle.toggle(window, cx);
     }
 }
 
@@ -452,7 +456,7 @@ impl EventEmitter<Event> for ActivityIndicator {}
 const MAX_MESSAGE_LEN: usize = 50;
 
 impl Render for ActivityIndicator {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let result = h_flex()
             .id("activity-indicator")
             .on_action(cx.listener(Self::show_error_message))
@@ -494,10 +498,10 @@ impl Render for ActivityIndicator {
                     ),
                 )
                 .anchor(gpui::AnchorCorner::BottomLeft)
-                .menu(move |cx| {
+                .menu(move |window, cx| {
                     let strong_this = this.upgrade()?;
                     let mut has_work = false;
-                    let menu = ContextMenu::build(cx, |mut menu, cx| {
+                    let menu = ContextMenu::build(window, cx, |mut menu, window, cx| {
                         for work in strong_this.read(cx).pending_language_server_work(cx) {
                             has_work = true;
                             let this = this.clone();
@@ -554,5 +558,5 @@ impl Render for ActivityIndicator {
 }
 
 impl StatusItemView for ActivityIndicator {
-    fn set_active_pane_item(&mut self, _: Option<&dyn ItemHandle>, _: &mut ViewContext<Self>) {}
+    fn set_active_pane_item(&mut self, _: Option<&dyn ItemHandle>, _: &mut ModelContext<Self>) {}
 }

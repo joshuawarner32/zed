@@ -12,7 +12,7 @@ use command_palette_hooks::{
 use fuzzy::{StringMatch, StringMatchCandidate};
 use gpui::{
     Action, AppContext, DismissEvent, EventEmitter, FocusHandle, FocusableView, Global,
-    ParentElement, Render, Styled, Task, UpdateGlobal, View, ViewContext, VisualContext, WeakView,
+    ParentElement, Render, Styled, Task, UpdateGlobal, View, ModelContext, VisualContext, WeakView,
 };
 use picker::{Picker, PickerDelegate};
 
@@ -27,13 +27,13 @@ pub fn init(cx: &mut AppContext) {
     client::init_settings(cx);
     cx.set_global(HitCounts::default());
     command_palette_hooks::init(cx);
-    cx.observe_new_views(CommandPalette::register).detach();
+    cx.observe_new_models(CommandPalette::register).detach();
 }
 
 impl ModalView for CommandPalette {}
 
 pub struct CommandPalette {
-    picker: View<Picker<CommandPaletteDelegate>>,
+    picker: Model<Picker<CommandPaletteDelegate>>,
 }
 
 fn trim_consecutive_whitespaces(input: &str) -> String {
@@ -55,11 +55,11 @@ fn trim_consecutive_whitespaces(input: &str) -> String {
 }
 
 impl CommandPalette {
-    fn register(workspace: &mut Workspace, _: &mut ViewContext<Workspace>) {
+    fn register(workspace: &mut Workspace, _: &mut ModelContext<Workspace>) {
         workspace.register_action(|workspace, _: &Toggle, cx| Self::toggle(workspace, "", cx));
     }
 
-    pub fn toggle(workspace: &mut Workspace, query: &str, cx: &mut ViewContext<Workspace>) {
+    pub fn toggle(workspace: &mut Workspace, query: &str, cx: &mut ModelContext<Workspace>) {
         let Some(previous_focus_handle) = cx.focused() else {
             return;
         };
@@ -73,7 +73,7 @@ impl CommandPalette {
         previous_focus_handle: FocusHandle,
         telemetry: Arc<Telemetry>,
         query: &str,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Self {
         let filter = CommandPaletteFilter::try_global(cx);
 
@@ -99,7 +99,7 @@ impl CommandPalette {
             previous_focus_handle,
         );
 
-        let picker = cx.new_view(|cx| {
+        let picker = cx.new_model(|cx| {
             let picker = Picker::uniform_list(delegate, cx);
             picker.set_query(query, cx);
             picker
@@ -107,7 +107,7 @@ impl CommandPalette {
         Self { picker }
     }
 
-    pub fn set_query(&mut self, query: &str, cx: &mut ViewContext<Self>) {
+    pub fn set_query(&mut self, query: &str, cx: &mut ModelContext<Self>) {
         self.picker
             .update(cx, |picker, cx| picker.set_query(query, cx))
     }
@@ -122,13 +122,13 @@ impl FocusableView for CommandPalette {
 }
 
 impl Render for CommandPalette {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex().w(rems(34.)).child(self.picker.clone())
     }
 }
 
 pub struct CommandPaletteDelegate {
-    command_palette: WeakView<CommandPalette>,
+    command_palette: WeakModel<CommandPalette>,
     all_commands: Vec<Command>,
     commands: Vec<Command>,
     matches: Vec<StringMatch>,
@@ -165,7 +165,7 @@ impl Global for HitCounts {}
 
 impl CommandPaletteDelegate {
     fn new(
-        command_palette: WeakView<CommandPalette>,
+        command_palette: WeakModel<CommandPalette>,
         commands: Vec<Command>,
         telemetry: Arc<Telemetry>,
         previous_focus_handle: FocusHandle,
@@ -187,7 +187,7 @@ impl CommandPaletteDelegate {
         query: String,
         mut commands: Vec<Command>,
         mut matches: Vec<StringMatch>,
-        cx: &mut ViewContext<Picker<Self>>,
+        cx: &mut ModelContext<Picker<Self>>,
     ) {
         self.updating_matches.take();
 
@@ -253,14 +253,14 @@ impl PickerDelegate for CommandPaletteDelegate {
         self.selected_ix
     }
 
-    fn set_selected_index(&mut self, ix: usize, _: &mut ViewContext<Picker<Self>>) {
+    fn set_selected_index(&mut self, ix: usize, _: &mut ModelContext<Picker<Self>>) {
         self.selected_ix = ix;
     }
 
     fn update_matches(
         &mut self,
         mut query: String,
-        cx: &mut ViewContext<Picker<Self>>,
+        cx: &mut ModelContext<Picker<Self>>,
     ) -> gpui::Task<()> {
         let settings = WorkspaceSettings::get_global(cx);
         if let Some(alias) = settings.command_aliases.get(&query) {
@@ -336,7 +336,7 @@ impl PickerDelegate for CommandPaletteDelegate {
         &mut self,
         query: String,
         duration: Duration,
-        cx: &mut ViewContext<Picker<Self>>,
+        cx: &mut ModelContext<Picker<Self>>,
     ) -> bool {
         let Some((task, rx)) = self.updating_matches.take() else {
             return true;
@@ -357,13 +357,13 @@ impl PickerDelegate for CommandPaletteDelegate {
         }
     }
 
-    fn dismissed(&mut self, cx: &mut ViewContext<Picker<Self>>) {
+    fn dismissed(&mut self, cx: &mut ModelContext<Picker<Self>>) {
         self.command_palette
             .update(cx, |_, cx| cx.emit(DismissEvent))
             .log_err();
     }
 
-    fn confirm(&mut self, _: bool, cx: &mut ViewContext<Picker<Self>>) {
+    fn confirm(&mut self, _: bool, cx: &mut ModelContext<Picker<Self>>) {
         if self.matches.is_empty() {
             self.dismissed(cx);
             return;
@@ -389,7 +389,7 @@ impl PickerDelegate for CommandPaletteDelegate {
         &self,
         ix: usize,
         selected: bool,
-        cx: &mut ViewContext<Picker<Self>>,
+        cx: &mut ModelContext<Picker<Self>>,
     ) -> Option<Self::ListItem> {
         let r#match = self.matches.get(ix)?;
         let command = self.commands.get(r#match.candidate_id)?;
@@ -484,7 +484,7 @@ mod tests {
         let project = Project::test(app_state.fs.clone(), [], cx).await;
         let (workspace, cx) = cx.add_window_view(|cx| Workspace::test_new(project.clone(), cx));
 
-        let editor = cx.new_view(|cx| {
+        let editor = cx.new_model(|cx| {
             let mut editor = Editor::single_line(cx);
             editor.set_text("abc", cx);
             editor

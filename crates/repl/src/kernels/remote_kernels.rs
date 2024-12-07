@@ -132,7 +132,7 @@ impl RemoteRunningKernel {
     pub fn new(
         kernelspec: RemoteKernelSpecification,
         working_directory: std::path::PathBuf,
-        session: View<Session>,
+        session: Model<Session>,
         cx: &mut WindowContext,
     ) -> Task<Result<Box<dyn RunningKernel>>> {
         let remote_server = RemoteServer {

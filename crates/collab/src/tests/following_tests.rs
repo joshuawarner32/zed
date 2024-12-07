@@ -83,7 +83,7 @@ async fn test_basic_following(
     let (workspace_a, cx_a) = client_a.build_workspace(&project_a, cx_a);
     let (workspace_b, cx_b) = client_b.build_workspace(&project_b, cx_b);
 
-    cx_b.update(|cx| {
+    cx_b.update(|window, cx| {
         assert!(cx.is_window_active());
     });
 
@@ -309,7 +309,7 @@ async fn test_basic_following(
         result
     });
     let multibuffer_editor_a = workspace_a.update(cx_a, |workspace, cx| {
-        let editor = cx.new_view(|cx| {
+        let editor = cx.new_model(|cx| {
             Editor::for_multibuffer(multibuffer_a, Some(project_a.clone()), true, cx)
         });
         workspace.add_item_to_active_pane(Box::new(editor.clone()), None, true, cx);
@@ -478,7 +478,7 @@ async fn test_basic_following(
     });
 
     // Client B activates a panel, and the previously-opened screen-sharing item gets activated.
-    let panel = cx_b.new_view(|cx| TestPanel::new(DockPosition::Left, cx));
+    let panel = cx_b.new_model(|cx| TestPanel::new(DockPosition::Left, cx));
     workspace_b.update(cx_b, |workspace, cx| {
         workspace.add_panel(panel, cx);
         workspace.toggle_panel_focus::<TestPanel>(cx);
@@ -506,7 +506,7 @@ async fn test_basic_following(
 
     // Client B activates an item that doesn't implement following,
     // so the previously-opened screen-sharing item gets activated.
-    let unfollowable_item = cx_b.new_view(TestItem::new);
+    let unfollowable_item = cx_b.new_model(TestItem::new);
     workspace_b.update(cx_b, |workspace, cx| {
         workspace.active_pane().update(cx, |pane, cx| {
             pane.add_item(Box::new(unfollowable_item), true, true, None, cx)
@@ -599,7 +599,7 @@ async fn test_following_tab_order(
         .await
         .unwrap();
 
-    let pane_paths = |pane: &View<workspace::Pane>, cx: &mut VisualTestContext| {
+    let pane_paths = |pane: &Model<workspace::Pane>, cx: &mut VisualTestContext| {
         pane.update(cx, |pane, cx| {
             pane.items()
                 .map(|item| {
@@ -1538,7 +1538,7 @@ async fn test_following_across_workspaces(cx_a: &mut TestAppContext, cx_b: &mut 
 
     executor.run_until_parked();
     assert_eq!(visible_push_notifications(cx_a).len(), 1);
-    cx_a.update(|cx| {
+    cx_a.update(|window, cx| {
         workspace::join_in_room_project(
             project_b_id,
             client_b.user_id().unwrap(),
@@ -1612,7 +1612,7 @@ async fn test_following_stops_on_unshare(cx_a: &mut TestAppContext, cx_b: &mut T
     });
 
     // a unshares the project
-    cx_a.update(|cx| {
+    cx_a.update(|window, cx| {
         let project = workspace_a.read(cx).project().clone();
         ActiveCall::global(cx).update(cx, |call, cx| {
             call.unshare_project(project, cx).unwrap();
@@ -1630,7 +1630,7 @@ async fn test_following_stops_on_unshare(cx_a: &mut TestAppContext, cx_b: &mut T
     editor_b.update(cx_b, |editor, cx| {
         assert_eq!(editor.selections.ranges(cx), vec![1..1])
     });
-    cx_b.update(|cx| {
+    cx_b.update(|window, cx| {
         let room = ActiveCall::global(cx).read(cx).room().unwrap().read(cx);
         let participant = room.remote_participants().get(&client_a.id()).unwrap();
         assert_eq!(participant.location, ParticipantLocation::UnsharedProject)
@@ -1770,7 +1770,7 @@ async fn test_following_into_excluded_file(
 
 fn visible_push_notifications(
     cx: &mut TestAppContext,
-) -> Vec<gpui::View<ProjectSharedNotification>> {
+) -> Vec<gpui::Model<ProjectSharedNotification>> {
     let mut ret = Vec::new();
     for window in cx.windows() {
         window
@@ -1815,7 +1815,7 @@ fn followers_by_leader(project_id: u64, cx: &TestAppContext) -> Vec<(PeerId, Vec
     })
 }
 
-fn pane_summaries(workspace: &View<Workspace>, cx: &mut VisualTestContext) -> Vec<PaneSummary> {
+fn pane_summaries(workspace: &Model<Workspace>, cx: &mut VisualTestContext) -> Vec<PaneSummary> {
     workspace.update(cx, |workspace, cx| {
         let active_pane = workspace.active_pane();
         workspace
@@ -2021,7 +2021,7 @@ pub(crate) async fn join_channel(
 }
 
 async fn share_workspace(
-    workspace: &View<Workspace>,
+    workspace: &Model<Workspace>,
     cx: &mut VisualTestContext,
 ) -> anyhow::Result<u64> {
     let project = workspace.update(cx, |workspace, _| workspace.project().clone());
@@ -2077,7 +2077,7 @@ async fn test_following_to_channel_notes_other_workspace(
     });
 
     // a returns to the shared project
-    cx_a.update(|cx| cx.activate_window());
+    cx_a.update(|window, cx| cx.activate_window());
     cx_a.run_until_parked();
 
     workspace_a.update(cx_a, |workspace, cx| {
@@ -2146,7 +2146,7 @@ async fn test_following_while_deactivated(cx_a: &mut TestAppContext, cx_b: &mut 
     cx_a.run_until_parked();
 
     // a returns to the shared project
-    cx_a.update(|cx| cx.activate_window());
+    cx_a.update(|window, cx| cx.activate_window());
     cx_a.run_until_parked();
 
     workspace_a.update(cx_a, |workspace, cx| {

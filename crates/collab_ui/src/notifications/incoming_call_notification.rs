@@ -37,7 +37,7 @@ pub fn init(app_state: &Arc<AppState>, cx: &mut AppContext) {
                     {
                         let window = cx
                             .open_window(options, |cx| {
-                                cx.new_view(|_| {
+                                cx.new_model(|_| {
                                     IncomingCallNotification::new(
                                         incoming_call.clone(),
                                         app_state.clone(),
@@ -111,7 +111,7 @@ impl IncomingCallNotification {
 }
 
 impl Render for IncomingCallNotification {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let ui_font = theme::setup_ui_font(cx);
 
         div().size_full().font(ui_font).child(

@@ -11,7 +11,7 @@ use editor::actions::{
 use editor::{Editor, EditorSettings};
 use gpui::{
     Action, AnchorCorner, ClickEvent, ElementId, EventEmitter, FocusHandle, FocusableView,
-    InteractiveElement, ParentElement, Render, Styled, Subscription, View, ViewContext, WeakView,
+    InteractiveElement, ModelContext, ParentElement, Render, Styled, Subscription, View, WeakView,
 };
 use search::{buffer_search, BufferSearchBar};
 use settings::{Settings, SettingsStore};
@@ -27,18 +27,18 @@ use zed_actions::InlineAssist;
 pub struct QuickActionBar {
     _inlay_hints_enabled_subscription: Option<Subscription>,
     active_item: Option<Box<dyn ItemHandle>>,
-    buffer_search_bar: View<BufferSearchBar>,
+    buffer_search_bar: Model<BufferSearchBar>,
     show: bool,
     toggle_selections_handle: PopoverMenuHandle<ContextMenu>,
     toggle_settings_handle: PopoverMenuHandle<ContextMenu>,
-    workspace: WeakView<Workspace>,
+    workspace: WeakModel<Workspace>,
 }
 
 impl QuickActionBar {
     pub fn new(
-        buffer_search_bar: View<BufferSearchBar>,
+        buffer_search_bar: Model<BufferSearchBar>,
         workspace: &Workspace,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Self {
         let mut this = Self {
             _inlay_hints_enabled_subscription: None,
@@ -55,13 +55,13 @@ impl QuickActionBar {
         this
     }
 
-    fn active_editor(&self) -> Option<View<Editor>> {
+    fn active_editor(&self) -> Option<Model<Editor>> {
         self.active_item
             .as_ref()
             .and_then(|item| item.downcast::<Editor>())
     }
 
-    fn apply_settings(&mut self, cx: &mut ViewContext<Self>) {
+    fn apply_settings(&mut self, cx: &mut ModelContext<Self>) {
         let new_show = EditorSettings::get_global(cx).toolbar.quick_actions;
         if new_show != self.show {
             self.show = new_show;
@@ -81,7 +81,7 @@ impl QuickActionBar {
 }
 
 impl Render for QuickActionBar {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let Some(editor) = self.active_editor() else {
             return div().id("empty quick action bar");
         };
@@ -164,9 +164,9 @@ impl Render for QuickActionBar {
                 )
                 .with_handle(self.toggle_selections_handle.clone())
                 .anchor(AnchorCorner::TopRight)
-                .menu(move |cx| {
+                .menu(move |window, cx| {
                     let focus = focus.clone();
-                    let menu = ContextMenu::build(cx, move |menu, _| {
+                    let menu = ContextMenu::build(window, cx, move |menu, window, _| {
                         menu.context(focus.clone())
                             .action("Select All", Box::new(SelectAll))
                             .action(
@@ -211,8 +211,8 @@ impl Render for QuickActionBar {
             )
             .anchor(AnchorCorner::TopRight)
             .with_handle(self.toggle_settings_handle.clone())
-            .menu(move |cx| {
-                let menu = ContextMenu::build(cx, |mut menu, _| {
+            .menu(move |window, cx| {
+                let menu = ContextMenu::build(window, cx, |mut menu, window, _| {
                     if supports_inlay_hints {
                         menu = menu.toggleable_entry(
                             "Inlay Hints",
@@ -361,8 +361,8 @@ impl RenderOnce for QuickActionBarButton {
             .icon_size(IconSize::Small)
             .style(ButtonStyle::Subtle)
             .selected(self.toggled)
-            .tooltip(move |cx| {
-                Tooltip::for_action_in(tooltip.clone(), &*action, &self.focus_handle, cx)
+            .tooltip(move |window, cx| {
+                Tooltip::for_action_in(tooltip.clone(), &*action, &self.focus_handle, window, cx)
             })
             .on_click(move |event, cx| (self.on_click)(event, cx))
     }
@@ -372,7 +372,7 @@ impl ToolbarItemView for QuickActionBar {
     fn set_active_pane_item(
         &mut self,
         active_pane_item: Option<&dyn ItemHandle>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> ToolbarItemLocation {
         self.active_item = active_pane_item.map(ItemHandle::boxed_clone);
         if let Some(active_item) = active_pane_item {

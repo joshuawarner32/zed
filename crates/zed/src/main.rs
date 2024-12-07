@@ -70,7 +70,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 fn fail_to_launch(e: anyhow::Error) {
     eprintln!("Zed failed to launch: {e:?}");
     App::new().run(move |cx| {
-        if let Ok(window) = cx.open_window(gpui::WindowOptions::default(), |cx| cx.new_view(|_| gpui::Empty)) {
+        if let Ok(window) = cx.open_window(gpui::WindowOptions::default(), |cx| cx.new_model(|_| gpui::Empty)) {
             window.update(cx, |_, cx| {
                 let response = cx.prompt(gpui::PromptLevel::Critical, "Zed failed to launch", Some(&format!("{e}\n\nFor help resolving this, please open an issue on https://github.com/zed-industries/zed")), &["Exit"]);
 
@@ -568,7 +568,7 @@ fn handle_keymap_changed(error: Option<anyhow::Error>, cx: &mut AppContext) {
             .update(cx, |workspace, cx| match &error {
                 Some(error) => {
                     workspace.show_notification(id.clone(), cx, |cx| {
-                        cx.new_view(|_| {
+                        cx.new_model(|_| {
                             MessageNotification::new(format!("Invalid keymap file\n{error}"))
                                 .with_click_message("Open keymap file")
                                 .on_click(|cx| {
@@ -599,7 +599,7 @@ fn handle_settings_changed(error: Option<anyhow::Error>, cx: &mut AppContext) {
                             // Local settings will be displayed by the projects
                         } else {
                             workspace.show_notification(id.clone(), cx, |cx| {
-                                cx.new_view(|_| {
+                                cx.new_model(|_| {
                                     MessageNotification::new(format!(
                                         "Invalid user settings file\n{error}"
                                     ))

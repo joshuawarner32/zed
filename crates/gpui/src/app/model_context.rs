@@ -1,7 +1,6 @@
 use crate::{
-    AnyView, AnyWindowHandle, AppContext, AsyncAppContext, Context, Effect, Entity, EntityId,
-    EventEmitter, Model, Reservation, Subscription, Task, View, WeakModel, WindowContext,
-    WindowHandle,
+    AnyWindowHandle, AppContext, AsyncAppContext, Context, Effect, Entity, EntityId, EventEmitter,
+    Model, Reservation, Subscription, Task, WeakModel, Window,
 };
 use anyhow::Result;
 use derive_more::{Deref, DerefMut};
@@ -44,7 +43,7 @@ impl<'a, T: 'static> ModelContext<'a, T> {
     }
 
     /// Arranges for the given function to be called whenever [`ModelContext::notify`] or
-    /// [`ViewContext::notify`](crate::ViewContext::notify) is called with the given model or view.
+    /// [`ModelContext::notify`](crate::ModelContext::notify) is called with the given model or view.
     pub fn observe<W, E>(
         &mut self,
         entity: &E,
@@ -203,6 +202,32 @@ impl<'a, T: 'static> ModelContext<'a, T> {
         let this = self.weak_model();
         self.app.spawn(|cx| f(this, cx))
     }
+
+    /// Creates a listener function that updates the model that owns this context when an event is received.
+    ///
+    /// This method takes a callback function that will be called with the model, the event, and a mutable
+    /// reference to the `AppContext`. It returns a new function that can be used as an event listener.
+    ///
+    /// # Arguments
+    ///
+    /// * `callback` - A closure that takes a mutable reference to the model (`&mut T`), a reference to the event (`&E`),
+    ///   and a mutable reference to the `AppContext`.
+    ///
+    /// # Returns
+    ///
+    /// A new function that can be used as an event listener. This function takes a reference to the event (`&E`)
+    /// and a mutable reference to the `AppContext`.
+    pub fn listener<E: ?Sized>(
+        &self,
+        callback: impl Fn(&mut T, &E, &mut Window, &mut ModelContext<T>) + 'static,
+    ) -> impl Fn(&E, &mut Window, &mut AppContext) {
+        let model = self.handle();
+        move |event: &E, window: &mut Window, cx: &mut AppContext| {
+            model.update(cx, |model, cx| {
+                callback(model, event, window, cx);
+            });
+        }
+    }
 }
 
 impl<'a, T> ModelContext<'a, T> {
@@ -263,19 +288,16 @@ impl<'a, T> Context for ModelContext<'a, T> {
 
     fn update_window<R, F>(&mut self, window: AnyWindowHandle, update: F) -> Result<R>
     where
-        F: FnOnce(AnyView, &mut WindowContext<'_>) -> R,
+        F: FnOnce(&mut Window, &mut AppContext) -> R,
     {
         self.app.update_window(window, update)
     }
 
-    fn read_window<U, R>(
+    fn read_window<R>(
         &self,
-        window: &WindowHandle<U>,
-        read: impl FnOnce(View<U>, &AppContext) -> R,
-    ) -> Result<R>
-    where
-        U: 'static,
-    {
+        window: AnyWindowHandle,
+        read: impl FnOnce(&Window, &AppContext) -> R,
+    ) -> Result<R> {
         self.app.read_window(window, read)
     }
 }

@@ -69,15 +69,15 @@ impl VimTestContext {
         cx.update_workspace(|workspace, cx| {
             workspace.active_pane().update(cx, |pane, cx| {
                 pane.toolbar().update(cx, |toolbar, cx| {
-                    let buffer_search_bar = cx.new_view(BufferSearchBar::new);
+                    let buffer_search_bar = cx.new_model(BufferSearchBar::new);
                     toolbar.add_item(buffer_search_bar, cx);
 
-                    let project_search_bar = cx.new_view(|_| ProjectSearchBar::new());
+                    let project_search_bar = cx.new_model(|_| ProjectSearchBar::new());
                     toolbar.add_item(project_search_bar, cx);
                 })
             });
             workspace.status_bar().update(cx, |status_bar, cx| {
-                let vim_mode_indicator = cx.new_view(ModeIndicator::new);
+                let vim_mode_indicator = cx.new_model(ModeIndicator::new);
                 status_bar.add_right_item(vim_mode_indicator, cx);
             });
         });
@@ -85,10 +85,10 @@ impl VimTestContext {
         Self { cx }
     }
 
-    pub fn update_view<F, T, R>(&mut self, view: View<T>, update: F) -> R
+    pub fn update_view<F, T, R>(&mut self, view: Model<T>, update: F) -> R
     where
         T: 'static,
-        F: FnOnce(&mut T, &mut ViewContext<T>) -> R + 'static,
+        F: FnOnce(&mut T, &mut ModelContext<T>) -> R + 'static,
     {
         let window = self.window;
         self.update_window(window, move |_, cx| view.update(cx, update))
@@ -97,7 +97,7 @@ impl VimTestContext {
 
     pub fn workspace<F, T>(&mut self, update: F) -> T
     where
-        F: FnOnce(&mut Workspace, &mut ViewContext<Workspace>) -> T,
+        F: FnOnce(&mut Workspace, &mut ModelContext<Workspace>) -> T,
     {
         self.cx.update_workspace(update)
     }

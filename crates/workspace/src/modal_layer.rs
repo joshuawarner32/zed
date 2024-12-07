@@ -7,7 +7,7 @@ pub enum DismissDecision {
 }
 
 pub trait ModalView: ManagedView {
-    fn on_before_dismiss(&mut self, _: &mut ViewContext<Self>) -> DismissDecision {
+    fn on_before_dismiss(&mut self, _: &mut ModelContext<Self>) -> DismissDecision {
         DismissDecision::Dismiss(true)
     }
 
@@ -22,7 +22,7 @@ trait ModalViewHandle {
     fn fade_out_background(&self, cx: &WindowContext) -> bool;
 }
 
-impl<V: ModalView> ModalViewHandle for View<V> {
+impl<V: ModalView> ModalViewHandle for Model<V> {
     fn on_before_dismiss(&mut self, cx: &mut WindowContext) -> DismissDecision {
         self.update(cx, |this, cx| this.on_before_dismiss(cx))
     }
@@ -62,10 +62,10 @@ impl ModalLayer {
         }
     }
 
-    pub fn toggle_modal<V, B>(&mut self, cx: &mut ViewContext<Self>, build_view: B)
+    pub fn toggle_modal<V, B>(&mut self, cx: &mut ModelContext<Self>, build_view: B)
     where
         V: ModalView,
-        B: FnOnce(&mut ViewContext<V>) -> V,
+        B: FnOnce(&mut ModelContext<V>) -> V,
     {
         if let Some(active_modal) = &self.active_modal {
             let is_close = active_modal.modal.view().downcast::<V>().is_ok();
@@ -74,11 +74,11 @@ impl ModalLayer {
                 return;
             }
         }
-        let new_modal = cx.new_view(build_view);
+        let new_modal = cx.new_model(build_view);
         self.show_modal(new_modal, cx);
     }
 
-    fn show_modal<V>(&mut self, new_modal: View<V>, cx: &mut ViewContext<Self>)
+    fn show_modal<V>(&mut self, new_modal: Model<V>, cx: &mut ModelContext<Self>)
     where
         V: ModalView,
     {
@@ -104,7 +104,7 @@ impl ModalLayer {
         cx.notify();
     }
 
-    fn hide_modal(&mut self, cx: &mut ViewContext<Self>) -> bool {
+    fn hide_modal(&mut self, cx: &mut ModelContext<Self>) -> bool {
         let Some(active_modal) = self.active_modal.as_mut() else {
             self.dismiss_on_focus_lost = false;
             return false;
@@ -134,7 +134,7 @@ impl ModalLayer {
         true
     }
 
-    pub fn active_modal<V>(&self) -> Option<View<V>>
+    pub fn active_modal<V>(&self) -> Option<Model<V>>
     where
         V: 'static,
     {
@@ -148,7 +148,7 @@ impl ModalLayer {
 }
 
 impl Render for ModalLayer {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let Some(active_modal) = &self.active_modal else {
             return div();
         };

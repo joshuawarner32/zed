@@ -5,7 +5,7 @@ pub struct ApplicationMenu {
 }
 
 impl ApplicationMenu {
-    pub fn new(_: &mut ViewContext<Self>) -> Self {
+    pub fn new(_: &mut ModelContext<Self>) -> Self {
         Self {
             context_menu_handle: PopoverMenuHandle::default(),
         }
@@ -13,10 +13,10 @@ impl ApplicationMenu {
 }
 
 impl Render for ApplicationMenu {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         PopoverMenu::new("application-menu")
-            .menu(move |cx| {
-                ContextMenu::build(cx, move |menu, cx| {
+            .menu(move |window, cx| {
+                ContextMenu::build(window, cx, move |menu, window, cx| {
                     menu.header("Workspace")
                         .action(
                             "Open Command Palette",

@@ -6,7 +6,7 @@ use collections::BTreeMap;
 use futures::Future;
 use git::diff::DiffHunkStatus;
 use gpui::{
-    AnyWindowHandle, AppContext, Keystroke, ModelContext, Pixels, Point, View, ViewContext,
+    AnyWindowHandle, AppContext, Keystroke, ModelContext, ModelContext, Pixels, Point, View,
     VisualTestContext, WindowHandle,
 };
 use itertools::Itertools;
@@ -35,7 +35,7 @@ use super::{build_editor, build_editor_with_project};
 pub struct EditorTestContext {
     pub cx: gpui::VisualTestContext,
     pub window: AnyWindowHandle,
-    pub editor: View<Editor>,
+    pub editor: Model<Editor>,
     pub assertion_cx: AssertionContextManager,
 }
 
@@ -140,7 +140,7 @@ impl EditorTestContext {
     #[track_caller]
     pub fn editor<F, T>(&mut self, read: F) -> T
     where
-        F: FnOnce(&Editor, &ViewContext<Editor>) -> T,
+        F: FnOnce(&Editor, &ModelContext<Editor>) -> T,
     {
         self.editor.update(&mut self.cx, |this, cx| read(this, cx))
     }
@@ -148,7 +148,7 @@ impl EditorTestContext {
     #[track_caller]
     pub fn update_editor<F, T>(&mut self, update: F) -> T
     where
-        F: FnOnce(&mut Editor, &mut ViewContext<Editor>) -> T,
+        F: FnOnce(&mut Editor, &mut ModelContext<Editor>) -> T,
     {
         self.editor.update(&mut self.cx, update)
     }

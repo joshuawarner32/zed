@@ -6,7 +6,7 @@ use editor::{
     scroll::Autoscroll,
     Anchor, Bias, DisplayPoint,
 };
-use gpui::ViewContext;
+use gpui::ModelContext;
 use language::SelectionGoal;
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
 };
 
 impl Vim {
-    pub fn create_mark(&mut self, text: Arc<str>, tail: bool, cx: &mut ViewContext<Self>) {
+    pub fn create_mark(&mut self, text: Arc<str>, tail: bool, cx: &mut ModelContext<Self>) {
         let Some(anchors) = self.update_editor(cx, |_, editor, _| {
             editor
                 .selections
@@ -33,13 +33,13 @@ impl Vim {
 
     // When handling an action, you must create visual marks if you will switch to normal
     // mode without the default selection behavior.
-    pub(crate) fn store_visual_marks(&mut self, cx: &mut ViewContext<Self>) {
+    pub(crate) fn store_visual_marks(&mut self, cx: &mut ModelContext<Self>) {
         if self.mode.is_visual() {
             self.create_visual_marks(self.mode, cx);
         }
     }
 
-    pub(crate) fn create_visual_marks(&mut self, mode: Mode, cx: &mut ViewContext<Self>) {
+    pub(crate) fn create_visual_marks(&mut self, mode: Mode, cx: &mut ModelContext<Self>) {
         let mut starts = vec![];
         let mut ends = vec![];
         let mut reversed = vec![];
@@ -65,7 +65,7 @@ impl Vim {
         self.stored_visual_mode.replace((mode, reversed));
     }
 
-    pub fn jump(&mut self, text: Arc<str>, line: bool, cx: &mut ViewContext<Self>) {
+    pub fn jump(&mut self, text: Arc<str>, line: bool, cx: &mut ModelContext<Self>) {
         self.pop_operator(cx);
 
         let anchors = match &*text {

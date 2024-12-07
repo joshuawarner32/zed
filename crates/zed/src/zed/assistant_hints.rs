@@ -1,7 +1,7 @@
 use assistant::assistant_settings::AssistantSettings;
 use collections::HashMap;
 use editor::{ActiveLineTrailerProvider, Editor, EditorMode};
-use gpui::{AnyWindowHandle, AppContext, ViewContext, WeakView, WindowContext};
+use gpui::{AnyWindowHandle, AppContext, ModelContext, WeakView, WindowContext};
 use settings::{Settings, SettingsStore};
 use std::{cell::RefCell, rc::Rc};
 use theme::ActiveTheme;
@@ -9,11 +9,11 @@ use ui::prelude::*;
 use workspace::Workspace;
 
 pub fn init(cx: &mut AppContext) {
-    let editors: Rc<RefCell<HashMap<WeakView<Editor>, AnyWindowHandle>>> = Rc::default();
+    let editors: Rc<RefCell<HashMap<WeakModel<Editor>, AnyWindowHandle>>> = Rc::default();
 
-    cx.observe_new_views({
+    cx.observe_new_models({
         let editors = editors.clone();
-        move |_: &mut Workspace, cx: &mut ViewContext<Workspace>| {
+        move |_: &mut Workspace, cx: &mut ModelContext<Workspace>| {
             let workspace_handle = cx.view().clone();
             cx.subscribe(&workspace_handle, {
                 let editors = editors.clone();
@@ -103,7 +103,7 @@ impl ActiveLineTrailerProvider for AssistantHintsProvider {
 fn assign_active_line_trailer_provider(
     editor: &mut Editor,
     show_hints: bool,
-    cx: &mut ViewContext<Editor>,
+    cx: &mut ModelContext<Editor>,
 ) {
     let provider = show_hints.then_some(AssistantHintsProvider);
     editor.set_active_line_trailer_provider(provider, cx);

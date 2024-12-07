@@ -1,11 +1,11 @@
 use editor::{display_map::ToDisplayPoint, movement, scroll::Autoscroll, Bias, Direction, Editor};
-use gpui::{actions, ViewContext};
+use gpui::{actions, ModelContext};
 
 use crate::{state::Mode, Vim};
 
 actions!(vim, [ChangeListOlder, ChangeListNewer]);
 
-pub(crate) fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
+pub(crate) fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
     Vim::action(editor, cx, |vim, _: &ChangeListOlder, cx| {
         vim.move_to_change(Direction::Prev, cx);
     });
@@ -15,7 +15,7 @@ pub(crate) fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
 }
 
 impl Vim {
-    fn move_to_change(&mut self, direction: Direction, cx: &mut ViewContext<Self>) {
+    fn move_to_change(&mut self, direction: Direction, cx: &mut ModelContext<Self>) {
         let count = self.take_count(cx).unwrap_or(1);
         if self.change_list.is_empty() {
             return;
@@ -42,7 +42,7 @@ impl Vim {
         });
     }
 
-    pub(crate) fn push_to_change_list(&mut self, cx: &mut ViewContext<Self>) {
+    pub(crate) fn push_to_change_list(&mut self, cx: &mut ModelContext<Self>) {
         let Some((map, selections)) = self.update_editor(cx, |_, editor, cx| {
             editor.selections.all_adjusted_display(cx)
         }) else {

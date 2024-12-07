@@ -1,7 +1,7 @@
 use anyhow::Result;
 use gpui::{
     prelude::*, px, Action, AppContext, AsyncWindowContext, EventEmitter, FocusHandle,
-    FocusableView, Pixels, Task, View, ViewContext, WeakView, WindowContext,
+    FocusableView, Pixels, Task, View, ModelContext, WeakView, WindowContext,
 };
 use language_model::LanguageModelRegistry;
 use language_model_selector::LanguageModelSelector;
@@ -13,8 +13,8 @@ use crate::chat_editor::ChatEditor;
 use crate::{NewChat, ToggleFocus, ToggleModelSelector};
 
 pub fn init(cx: &mut AppContext) {
-    cx.observe_new_views(
-        |workspace: &mut Workspace, _cx: &mut ViewContext<Workspace>| {
+    cx.observe_new_models(
+        |workspace: &mut Workspace, _cx: &mut ModelContext<Workspace>| {
             workspace.register_action(|workspace, _: &ToggleFocus, cx| {
                 workspace.toggle_panel_focus::<AssistantPanel>(cx);
             });
@@ -24,24 +24,24 @@ pub fn init(cx: &mut AppContext) {
 }
 
 pub struct AssistantPanel {
-    pane: View<Pane>,
-    chat_editor: View<ChatEditor>,
+    pane: Model<Pane>,
+    chat_editor: Model<ChatEditor>,
 }
 
 impl AssistantPanel {
     pub fn load(
-        workspace: WeakView<Workspace>,
+        workspace: WeakModel<Workspace>,
         cx: AsyncWindowContext,
-    ) -> Task<Result<View<Self>>> {
+    ) -> Task<Result<Model<Self>>> {
         cx.spawn(|mut cx| async move {
             workspace.update(&mut cx, |workspace, cx| {
-                cx.new_view(|cx| Self::new(workspace, cx))
+                cx.new_model(|cx| Self::new(workspace, cx))
             })
         })
     }
 
-    fn new(workspace: &Workspace, cx: &mut ViewContext<Self>) -> Self {
-        let pane = cx.new_view(|cx| {
+    fn new(workspace: &Workspace, cx: &mut ModelContext<Self>) -> Self {
+        let pane = cx.new_model(|cx| {
             let mut pane = Pane::new(
                 workspace.weak_handle(),
                 workspace.project().clone(),
@@ -58,7 +58,7 @@ impl AssistantPanel {
 
         Self {
             pane,
-            chat_editor: cx.new_view(ChatEditor::new),
+            chat_editor: cx.new_model(ChatEditor::new),
         }
     }
 }
@@ -84,25 +84,25 @@ impl Panel for AssistantPanel {
         true
     }
 
-    fn set_position(&mut self, _position: DockPosition, _cx: &mut ViewContext<Self>) {}
+    fn set_position(&mut self, _position: DockPosition, _cx: &mut ModelContext<Self>) {}
 
     fn size(&self, _cx: &WindowContext) -> Pixels {
         px(640.)
     }
 
-    fn set_size(&mut self, _size: Option<Pixels>, _cx: &mut ViewContext<Self>) {}
+    fn set_size(&mut self, _size: Option<Pixels>, _cx: &mut ModelContext<Self>) {}
 
     fn is_zoomed(&self, cx: &WindowContext) -> bool {
         self.pane.read(cx).is_zoomed()
     }
 
-    fn set_zoomed(&mut self, zoomed: bool, cx: &mut ViewContext<Self>) {
+    fn set_zoomed(&mut self, zoomed: bool, cx: &mut ModelContext<Self>) {
         self.pane.update(cx, |pane, cx| pane.set_zoomed(zoomed, cx));
     }
 
-    fn set_active(&mut self, _active: bool, _cx: &mut ViewContext<Self>) {}
+    fn set_active(&mut self, _active: bool, _cx: &mut ModelContext<Self>) {}
 
-    fn pane(&self) -> Option<View<Pane>> {
+    fn pane(&self) -> Option<Model<Pane>> {
         Some(self.pane.clone())
     }
 
@@ -124,14 +124,14 @@ impl Panel for AssistantPanel {
 }
 
 impl AssistantPanel {
-    fn render_toolbar(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render_toolbar(&self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let focus_handle = self.focus_handle(cx);
 
         h_flex()
             .id("assistant-toolbar")
             .justify_between()
             .gap(DynamicSpacing::Base08.rems(cx))
-            .h(Tab::container_height(cx))
+            .h(Tab::container_height(window, cx))
             .px(DynamicSpacing::Base08.rems(cx))
             .bg(cx.theme().colors().tab_bar_background)
             .border_b_1()
@@ -150,7 +150,13 @@ impl AssistantPanel {
                             .tooltip({
                                 let focus_handle = focus_handle.clone();
                                 move |cx| {
-                                    Tooltip::for_action_in("New Chat", &NewChat, &focus_handle, cx)
+                                    Tooltip::for_action_in(
+                                        "New Chat",
+                                        &NewChat,
+                                        &focus_handle,
+                                        window,
+                                        cx,
+                                    )
                                 }
                             })
                             .on_click(move |_event, _cx| {
@@ -180,7 +186,7 @@ impl AssistantPanel {
             )
     }
 
-    fn render_language_model_selector(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render_language_model_selector(&self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let active_provider = LanguageModelRegistry::read_global(cx).active_provider();
         let active_model = LanguageModelRegistry::read_global(cx).active_model();
 
@@ -227,13 +233,15 @@ impl AssistantPanel {
                                 .size(IconSize::XSmall),
                         ),
                 )
-                .tooltip(move |cx| Tooltip::for_action("Change Model", &ToggleModelSelector, cx)),
+                .tooltip(move |cx| {
+                    Tooltip::for_action("Change Model", &ToggleModelSelector, window, cx)
+                }),
         )
     }
 }
 
 impl Render for AssistantPanel {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex()
             .key_context("AssistantPanel2")
             .justify_between()

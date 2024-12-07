@@ -1,8 +1,8 @@
 use editor::{scroll::Autoscroll, styled_runs_for_code_label, Bias, Editor};
 use fuzzy::{StringMatch, StringMatchCandidate};
 use gpui::{
-    rems, AppContext, DismissEvent, FontWeight, Model, ParentElement, StyledText, Task, View,
-    ViewContext, WeakView, WindowContext,
+    rems, AppContext, DismissEvent, FontWeight, Model, ModelContext, ParentElement, StyledText,
+    Task, View, WeakView, WindowContext,
 };
 use ordered_float::OrderedFloat;
 use picker::{Picker, PickerDelegate};
@@ -16,8 +16,8 @@ use workspace::{
 };
 
 pub fn init(cx: &mut AppContext) {
-    cx.observe_new_views(
-        |workspace: &mut Workspace, _: &mut ViewContext<Workspace>| {
+    cx.observe_new_models(
+        |workspace: &mut Workspace, _: &mut ModelContext<Workspace>| {
             workspace.register_action(|workspace, _: &workspace::ToggleProjectSymbols, cx| {
                 let project = workspace.project().clone();
                 let handle = cx.view().downgrade();
@@ -31,10 +31,10 @@ pub fn init(cx: &mut AppContext) {
     .detach();
 }
 
-pub type ProjectSymbols = View<Picker<ProjectSymbolsDelegate>>;
+pub type ProjectSymbols = Model<Picker<ProjectSymbolsDelegate>>;
 
 pub struct ProjectSymbolsDelegate {
-    workspace: WeakView<Workspace>,
+    workspace: WeakModel<Workspace>,
     project: Model<Project>,
     selected_match_index: usize,
     symbols: Vec<Symbol>,
@@ -45,7 +45,7 @@ pub struct ProjectSymbolsDelegate {
 }
 
 impl ProjectSymbolsDelegate {
-    fn new(workspace: WeakView<Workspace>, project: Model<Project>) -> Self {
+    fn new(workspace: WeakModel<Workspace>, project: Model<Project>) -> Self {
         Self {
             workspace,
             project,
@@ -58,7 +58,7 @@ impl ProjectSymbolsDelegate {
         }
     }
 
-    fn filter(&mut self, query: &str, cx: &mut ViewContext<Picker<Self>>) {
+    fn filter(&mut self, query: &str, cx: &mut ModelContext<Picker<Self>>) {
         const MAX_MATCHES: usize = 100;
         let mut visible_matches = cx.background_executor().block(fuzzy::match_strings(
             &self.visible_match_candidates,
@@ -108,7 +108,7 @@ impl PickerDelegate for ProjectSymbolsDelegate {
         "Search project symbols...".into()
     }
 
-    fn confirm(&mut self, secondary: bool, cx: &mut ViewContext<Picker<Self>>) {
+    fn confirm(&mut self, secondary: bool, cx: &mut ModelContext<Picker<Self>>) {
         if let Some(symbol) = self
             .matches
             .get(self.selected_match_index)
@@ -147,7 +147,7 @@ impl PickerDelegate for ProjectSymbolsDelegate {
         }
     }
 
-    fn dismissed(&mut self, _cx: &mut ViewContext<Picker<Self>>) {}
+    fn dismissed(&mut self, _cx: &mut ModelContext<Picker<Self>>) {}
 
     fn match_count(&self) -> usize {
         self.matches.len()
@@ -157,11 +157,11 @@ impl PickerDelegate for ProjectSymbolsDelegate {
         self.selected_match_index
     }
 
-    fn set_selected_index(&mut self, ix: usize, _cx: &mut ViewContext<Picker<Self>>) {
+    fn set_selected_index(&mut self, ix: usize, _cx: &mut ModelContext<Picker<Self>>) {
         self.selected_match_index = ix;
     }
 
-    fn update_matches(&mut self, query: String, cx: &mut ViewContext<Picker<Self>>) -> Task<()> {
+    fn update_matches(&mut self, query: String, cx: &mut ModelContext<Picker<Self>>) -> Task<()> {
         self.filter(&query, cx);
         self.show_worktree_root_name = self.project.read(cx).visible_worktrees(cx).count() > 1;
         let symbols = self
@@ -202,7 +202,7 @@ impl PickerDelegate for ProjectSymbolsDelegate {
         &self,
         ix: usize,
         selected: bool,
-        cx: &mut ViewContext<Picker<Self>>,
+        cx: &mut ModelContext<Picker<Self>>,
     ) -> Option<Self::ListItem> {
         let string_match = &self.matches[ix];
         let symbol = &self.symbols[string_match.candidate_id];
@@ -342,7 +342,7 @@ mod tests {
         let (workspace, cx) = cx.add_window_view(|cx| Workspace::test_new(project.clone(), cx));
 
         // Create the project symbols view.
-        let symbols = cx.new_view(|cx| {
+        let symbols = cx.new_model(|cx| {
             Picker::uniform_list(
                 ProjectSymbolsDelegate::new(workspace.downgrade(), project.clone()),
                 cx,

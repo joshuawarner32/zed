@@ -2,7 +2,7 @@ use std::{any::Any, sync::Arc};
 
 use any_vec::AnyVec;
 use gpui::{
-    AnyView, AnyWeakView, AppContext, EventEmitter, Subscription, Task, View, ViewContext,
+    AnyView, AnyWeakView, AppContext, EventEmitter, ModelContext, Subscription, Task, View,
     WeakView, WindowContext,
 };
 use project::search::SearchQuery;
@@ -57,28 +57,33 @@ pub trait SearchableItem: Item + EventEmitter<SearchEvent> {
         }
     }
 
-    fn search_bar_visibility_changed(&mut self, _visible: bool, _cx: &mut ViewContext<Self>) {}
+    fn search_bar_visibility_changed(&mut self, _visible: bool, _cx: &mut ModelContext<Self>) {}
 
     fn has_filtered_search_ranges(&mut self) -> bool {
         Self::supported_options().selection
     }
 
-    fn toggle_filtered_search_ranges(&mut self, _enabled: bool, _cx: &mut ViewContext<Self>) {}
+    fn toggle_filtered_search_ranges(&mut self, _enabled: bool, _cx: &mut ModelContext<Self>) {}
 
     fn get_matches(&self, _: &mut WindowContext) -> Vec<Self::Match> {
         Vec::new()
     }
-    fn clear_matches(&mut self, cx: &mut ViewContext<Self>);
-    fn update_matches(&mut self, matches: &[Self::Match], cx: &mut ViewContext<Self>);
-    fn query_suggestion(&mut self, cx: &mut ViewContext<Self>) -> String;
-    fn activate_match(&mut self, index: usize, matches: &[Self::Match], cx: &mut ViewContext<Self>);
-    fn select_matches(&mut self, matches: &[Self::Match], cx: &mut ViewContext<Self>);
-    fn replace(&mut self, _: &Self::Match, _: &SearchQuery, _: &mut ViewContext<Self>);
+    fn clear_matches(&mut self, cx: &mut ModelContext<Self>);
+    fn update_matches(&mut self, matches: &[Self::Match], cx: &mut ModelContext<Self>);
+    fn query_suggestion(&mut self, cx: &mut ModelContext<Self>) -> String;
+    fn activate_match(
+        &mut self,
+        index: usize,
+        matches: &[Self::Match],
+        cx: &mut ModelContext<Self>,
+    );
+    fn select_matches(&mut self, matches: &[Self::Match], cx: &mut ModelContext<Self>);
+    fn replace(&mut self, _: &Self::Match, _: &SearchQuery, _: &mut ModelContext<Self>);
     fn replace_all(
         &mut self,
         matches: &mut dyn Iterator<Item = &Self::Match>,
         query: &SearchQuery,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         for item in matches {
             self.replace(item, query, cx);
@@ -90,7 +95,7 @@ pub trait SearchableItem: Item + EventEmitter<SearchEvent> {
         current_index: usize,
         direction: Direction,
         count: usize,
-        _: &mut ViewContext<Self>,
+        _: &mut ModelContext<Self>,
     ) -> usize {
         match direction {
             Direction::Prev => {
@@ -107,12 +112,12 @@ pub trait SearchableItem: Item + EventEmitter<SearchEvent> {
     fn find_matches(
         &mut self,
         query: Arc<SearchQuery>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Task<Vec<Self::Match>>;
     fn active_match_index(
         &mut self,
         matches: &[Self::Match],
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Option<usize>;
 }
 
@@ -165,7 +170,7 @@ pub trait SearchableItemHandle: ItemHandle {
     fn toggle_filtered_search_ranges(&mut self, enabled: bool, cx: &mut WindowContext);
 }
 
-impl<T: SearchableItem> SearchableItemHandle for View<T> {
+impl<T: SearchableItem> SearchableItemHandle for Model<T> {
     fn downgrade(&self) -> Box<dyn WeakSearchableItemHandle> {
         Box::new(self.downgrade())
     }
@@ -310,7 +315,7 @@ pub trait WeakSearchableItemHandle: WeakItemHandle {
     fn into_any(self) -> AnyWeakView;
 }
 
-impl<T: SearchableItem> WeakSearchableItemHandle for WeakView<T> {
+impl<T: SearchableItem> WeakSearchableItemHandle for WeakModel<T> {
     fn upgrade(&self, _cx: &AppContext) -> Option<Box<dyn SearchableItemHandle>> {
         Some(Box::new(self.upgrade()?))
     }

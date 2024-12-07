@@ -15,7 +15,7 @@ use gpui::{
 use language::Point;
 use serde::{Deserialize, Serialize};
 use settings::{Settings, SettingsStore};
-use ui::{SharedString, ViewContext};
+use ui::{SharedString, ModelContext};
 use workspace::searchable::Direction;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -166,7 +166,7 @@ pub struct VimGlobals {
     pub registers: HashMap<char, Register>,
     pub recordings: HashMap<char, Vec<ReplayableAction>>,
 
-    pub focused_vim: Option<WeakView<Vim>>,
+    pub focused_vim: Option<WeakModel<Vim>>,
 }
 impl Global for VimGlobals {}
 
@@ -209,7 +209,7 @@ impl VimGlobals {
         register: Option<char>,
         is_yank: bool,
         linewise: bool,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) {
         if let Some(register) = register {
             let lower = register.to_lowercase().next().unwrap_or(register);
@@ -283,7 +283,7 @@ impl VimGlobals {
         &mut self,
         register: Option<char>,
         editor: Option<&mut Editor>,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) -> Option<Register> {
         let Some(register) = register.filter(|reg| *reg != '"') else {
             let setting = VimSettings::get_global(cx).use_system_clipboard;
@@ -328,7 +328,7 @@ impl VimGlobals {
         }
     }
 
-    fn system_clipboard_is_newer(&self, cx: &ViewContext<Editor>) -> bool {
+    fn system_clipboard_is_newer(&self, cx: &ModelContext<Editor>) -> bool {
         cx.read_from_clipboard().is_some_and(|item| {
             if let Some(last_state) = &self.last_yank {
                 Some(last_state.as_ref()) != item.text().as_deref()
@@ -385,7 +385,7 @@ impl VimGlobals {
         }
     }
 
-    pub fn focused_vim(&self) -> Option<View<Vim>> {
+    pub fn focused_vim(&self) -> Option<Model<Vim>> {
         self.focused_vim.as_ref().and_then(|vim| vim.upgrade())
     }
 }

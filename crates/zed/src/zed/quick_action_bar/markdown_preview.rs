@@ -10,8 +10,8 @@ use super::QuickActionBar;
 impl QuickActionBar {
     pub fn render_toggle_markdown_preview(
         &self,
-        workspace: WeakView<Workspace>,
-        cx: &mut ViewContext<Self>,
+        workspace: WeakModel<Workspace>,
+        cx: &mut ModelContext<Self>,
     ) -> Option<AnyElement> {
         let mut active_editor_is_markdown = false;
 
@@ -37,7 +37,7 @@ impl QuickActionBar {
             .shape(IconButtonShape::Square)
             .icon_size(IconSize::Small)
             .style(ButtonStyle::Subtle)
-            .tooltip(move |cx| {
+            .tooltip(move |window, cx| {
                 Tooltip::with_meta(
                     "Preview Markdown",
                     Some(&markdown_preview::OpenPreview),

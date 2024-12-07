@@ -1,5 +1,5 @@
 use anyhow::Result;
-use gpui::{div, prelude::*, ClipboardItem, Model, Task, ViewContext, WindowContext};
+use gpui::{div, prelude::*, ClipboardItem, Model, Task, ModelContext, WindowContext};
 use language::Buffer;
 use markdown_preview::{
     markdown_elements::ParsedMarkdown, markdown_parser::parse_markdown,
@@ -16,7 +16,7 @@ pub struct MarkdownView {
 }
 
 impl MarkdownView {
-    pub fn from(text: String, cx: &mut ViewContext<Self>) -> Self {
+    pub fn from(text: String, cx: &mut ModelContext<Self>) -> Self {
         let task = cx.spawn(|markdown_view, mut cx| {
             let text = text.clone();
             let parsed = cx
@@ -68,7 +68,7 @@ impl OutputContent for MarkdownView {
 }
 
 impl Render for MarkdownView {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let Some(parsed) = self.contents.as_ref() else {
             return div().into_any_element();
         };

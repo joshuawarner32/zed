@@ -14,8 +14,8 @@ use client::{Client, UserStore};
 use feature_flags::{FeatureFlagAppExt, ZedPro};
 use gpui::{
     actions, div, px, Action, AnyElement, AppContext, Decorations, Element, InteractiveElement,
-    Interactivity, IntoElement, Model, MouseButton, ParentElement, Render, Stateful,
-    StatefulInteractiveElement, Styled, Subscription, View, ViewContext, VisualContext, WeakView,
+    Interactivity, IntoElement, Model, ModelContext, MouseButton, ParentElement, Render, Stateful,
+    StatefulInteractiveElement, Styled, Subscription, View, VisualContext, WeakView,
 };
 use project::{Project, RepositoryEntry};
 use rpc::proto;
@@ -50,8 +50,8 @@ actions!(
 );
 
 pub fn init(cx: &mut AppContext) {
-    cx.observe_new_views(|workspace: &mut Workspace, cx| {
-        let item = cx.new_view(|cx| TitleBar::new("title-bar", workspace, cx));
+    cx.observe_new_models(|workspace: &mut Workspace, cx| {
+        let item = cx.new_model(|cx| TitleBar::new("title-bar", workspace, cx));
         workspace.set_titlebar_item(item.into(), cx)
     })
     .detach();
@@ -64,14 +64,14 @@ pub struct TitleBar {
     project: Model<Project>,
     user_store: Model<UserStore>,
     client: Arc<Client>,
-    workspace: WeakView<Workspace>,
+    workspace: WeakModel<Workspace>,
     should_move: bool,
-    application_menu: Option<View<ApplicationMenu>>,
+    application_menu: Option<Model<ApplicationMenu>>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl Render for TitleBar {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let close_action = Box::new(workspace::CloseWindow);
         let height = Self::height(cx);
         let supported_controls = cx.window_controls();
@@ -206,7 +206,7 @@ impl TitleBar {
     pub fn new(
         id: impl Into<ElementId>,
         workspace: &Workspace,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Self {
         let project = workspace.project().clone();
         let user_store = workspace.app_state().user_store.clone();
@@ -217,7 +217,7 @@ impl TitleBar {
         let application_menu = match platform_style {
             PlatformStyle::Mac => None,
             PlatformStyle::Linux | PlatformStyle::Windows => {
-                Some(cx.new_view(ApplicationMenu::new))
+                Some(cx.new_model(ApplicationMenu::new))
             }
         };
 
@@ -263,7 +263,7 @@ impl TitleBar {
         self
     }
 
-    fn render_ssh_project_host(&self, cx: &mut ViewContext<Self>) -> Option<AnyElement> {
+    fn render_ssh_project_host(&self, cx: &mut ModelContext<Self>) -> Option<AnyElement> {
         let options = self.project.read(cx).ssh_connection_options(cx)?;
         let host: SharedString = options.connection_string().into();
 
@@ -318,7 +318,7 @@ impl TitleBar {
                         .text_ellipsis()
                         .child(Label::new(nickname.clone()).size(LabelSize::Small)),
                 )
-                .tooltip(move |cx| {
+                .tooltip(move |window, cx| {
                     Tooltip::with_meta("Remote Project", Some(&OpenRemote), meta.clone(), cx)
                 })
                 .on_click(|_, cx| {
@@ -328,7 +328,7 @@ impl TitleBar {
         )
     }
 
-    pub fn render_project_host(&self, cx: &mut ViewContext<Self>) -> Option<AnyElement> {
+    pub fn render_project_host(&self, cx: &mut ModelContext<Self>) -> Option<AnyElement> {
         if self.project.read(cx).is_via_ssh() {
             return self.render_ssh_project_host(cx);
         }
@@ -356,7 +356,7 @@ impl TitleBar {
                 .color(Color::Player(participant_index.0))
                 .style(ButtonStyle::Subtle)
                 .label_size(LabelSize::Small)
-                .tooltip(move |cx| {
+                .tooltip(move |window, cx| {
                     Tooltip::text(
                         format!(
                             "{} is sharing this project. Click to follow.",
@@ -379,7 +379,7 @@ impl TitleBar {
         )
     }
 
-    pub fn render_project_name(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    pub fn render_project_name(&self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let name = {
             let mut names = self.project.read(cx).visible_worktrees(cx).map(|worktree| {
                 let worktree = worktree.read(cx);
@@ -399,7 +399,7 @@ impl TitleBar {
             .when(!is_project_selected, |b| b.color(Color::Muted))
             .style(ButtonStyle::Subtle)
             .label_size(LabelSize::Small)
-            .tooltip(move |cx| {
+            .tooltip(move |window, cx| {
                 Tooltip::for_action(
                     "Recent Projects",
                     &zed_actions::OpenRecent {
@@ -418,7 +418,7 @@ impl TitleBar {
             }))
     }
 
-    pub fn render_project_branch(&self, cx: &mut ViewContext<Self>) -> Option<impl IntoElement> {
+    pub fn render_project_branch(&self, cx: &mut ModelContext<Self>) -> Option<impl IntoElement> {
         let entry = {
             let mut names_and_branches =
                 self.project.read(cx).visible_worktrees(cx).map(|worktree| {
@@ -438,11 +438,12 @@ impl TitleBar {
                 .color(Color::Muted)
                 .style(ButtonStyle::Subtle)
                 .label_size(LabelSize::Small)
-                .tooltip(move |cx| {
+                .tooltip(move |window, cx| {
                     Tooltip::with_meta(
                         "Recent Branches",
                         Some(&zed_actions::branches::OpenRecent),
                         "Local branches only",
+                        window,
                         cx,
                     )
                 })
@@ -454,7 +455,7 @@ impl TitleBar {
         )
     }
 
-    fn window_activation_changed(&mut self, cx: &mut ViewContext<Self>) {
+    fn window_activation_changed(&mut self, cx: &mut ModelContext<Self>) {
         if cx.is_window_active() {
             ActiveCall::global(cx)
                 .update(cx, |call, cx| call.set_location(Some(&self.project), cx))
@@ -471,11 +472,11 @@ impl TitleBar {
             .ok();
     }
 
-    fn active_call_changed(&mut self, cx: &mut ViewContext<Self>) {
+    fn active_call_changed(&mut self, cx: &mut ModelContext<Self>) {
         cx.notify();
     }
 
-    fn share_project(&mut self, _: &ShareProject, cx: &mut ViewContext<Self>) {
+    fn share_project(&mut self, _: &ShareProject, cx: &mut ModelContext<Self>) {
         let active_call = ActiveCall::global(cx);
         let project = self.project.clone();
         active_call
@@ -483,7 +484,7 @@ impl TitleBar {
             .detach_and_log_err(cx);
     }
 
-    fn unshare_project(&mut self, _: &UnshareProject, cx: &mut ViewContext<Self>) {
+    fn unshare_project(&mut self, _: &UnshareProject, cx: &mut ModelContext<Self>) {
         let active_call = ActiveCall::global(cx);
         let project = self.project.clone();
         active_call
@@ -494,7 +495,7 @@ impl TitleBar {
     fn render_connection_status(
         &self,
         status: &client::Status,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Option<AnyElement> {
         match status {
             client::Status::ConnectionError
@@ -539,7 +540,7 @@ impl TitleBar {
         }
     }
 
-    pub fn render_sign_in_button(&mut self, _: &mut ViewContext<Self>) -> Button {
+    pub fn render_sign_in_button(&mut self, _: &mut ModelContext<Self>) -> Button {
         let client = self.client.clone();
         Button::new("sign_in", "Sign in")
             .label_size(LabelSize::Small)
@@ -555,13 +556,13 @@ impl TitleBar {
             })
     }
 
-    pub fn render_user_menu_button(&mut self, cx: &mut ViewContext<Self>) -> impl Element {
+    pub fn render_user_menu_button(&mut self, cx: &mut ModelContext<Self>) -> impl Element {
         let user_store = self.user_store.read(cx);
         if let Some(user) = user_store.current_user() {
             let plan = user_store.current_plan();
             PopoverMenu::new("user-menu")
-                .menu(move |cx| {
-                    ContextMenu::build(cx, |menu, cx| {
+                .menu(move |window, cx| {
+                    ContextMenu::build(window, cx, |menu, window, cx| {
                         menu.when(cx.has_flag::<ZedPro>(), |menu| {
                             menu.action(
                                 format!(
@@ -614,7 +615,7 @@ impl TitleBar {
         } else {
             PopoverMenu::new("user-menu")
                 .menu(|cx| {
-                    ContextMenu::build(cx, |menu, _| {
+                    ContextMenu::build(window, cx, |menu, window, _| {
                         menu.action("Settings", zed_actions::OpenSettings.boxed_clone())
                             .action("Key Bindings", Box::new(zed_actions::OpenKeymap))
                             .action(

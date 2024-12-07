@@ -28,8 +28,8 @@ actions!(
 );
 
 pub fn init(cx: &mut AppContext) {
-    cx.observe_new_views(
-        |workspace: &mut Workspace, _cx: &mut ViewContext<Workspace>| {
+    cx.observe_new_models(
+        |workspace: &mut Workspace, _cx: &mut ModelContext<Workspace>| {
             workspace.register_action(|workspace, _: &Sessions, cx| {
                 let existing = workspace
                     .active_pane()
@@ -55,7 +55,7 @@ pub fn init(cx: &mut AppContext) {
     )
     .detach();
 
-    cx.observe_new_views(move |editor: &mut Editor, cx: &mut ViewContext<Editor>| {
+    cx.observe_new_models(move |editor: &mut Editor, cx: &mut ModelContext<Editor>| {
         if !editor.use_modal_editing() || !editor.buffer().read(cx).is_singleton() {
             return;
         }
@@ -91,7 +91,7 @@ pub fn init(cx: &mut AppContext) {
             }
 
             editor
-                .register_action({
+                .ModelContext<Self>{
                     let editor_handle = editor_handle.clone();
                     move |_: &Run, cx| {
                         if !JupyterSettings::enabled(cx) {
@@ -104,7 +104,7 @@ pub fn init(cx: &mut AppContext) {
                 .detach();
 
             editor
-                .register_action({
+                .ModelContext<Self>{
                     let editor_handle = editor_handle.clone();
                     move |_: &RunInPlace, cx| {
                         if !JupyterSettings::enabled(cx) {
@@ -126,8 +126,8 @@ pub struct ReplSessionsPage {
 }
 
 impl ReplSessionsPage {
-    pub fn new(cx: &mut ViewContext<Workspace>) -> View<Self> {
-        cx.new_view(|cx: &mut ViewContext<Self>| {
+    pub fn new(cx: &mut ModelContext<Workspace>) -> Model<Self> {
+        cx.new_model(|cx: &mut ModelContext<Self>| {
             let focus_handle = cx.focus_handle();
 
             let subscriptions = vec![
@@ -169,8 +169,8 @@ impl Item for ReplSessionsPage {
     fn clone_on_split(
         &self,
         _workspace_id: Option<WorkspaceId>,
-        _: &mut ViewContext<Self>,
-    ) -> Option<View<Self>> {
+        _: &mut ModelContext<Self>,
+    ) -> Option<Model<Self>> {
         None
     }
 
@@ -180,7 +180,7 @@ impl Item for ReplSessionsPage {
 }
 
 impl Render for ReplSessionsPage {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let store = ReplStore::global(cx);
 
         let (kernel_specifications, sessions) = store.update(cx, |store, _cx| {

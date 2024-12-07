@@ -8,7 +8,7 @@ use editor::{movement, scroll::Autoscroll, Bias};
 use language::BracketPair;
 use serde::Deserialize;
 use std::sync::Arc;
-use ui::ViewContext;
+use ui::ModelContext;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SurroundsType {
@@ -32,7 +32,7 @@ impl Vim {
         &mut self,
         text: Arc<str>,
         target: SurroundsType,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.stop_recording(cx);
         let count = self.take_count(cx);
@@ -133,7 +133,7 @@ impl Vim {
         self.switch_mode(Mode::Normal, false, cx);
     }
 
-    pub fn delete_surrounds(&mut self, text: Arc<str>, cx: &mut ViewContext<Self>) {
+    pub fn delete_surrounds(&mut self, text: Arc<str>, cx: &mut ModelContext<Self>) {
         self.stop_recording(cx);
 
         // only legitimate surrounds can be removed
@@ -224,7 +224,12 @@ impl Vim {
         });
     }
 
-    pub fn change_surrounds(&mut self, text: Arc<str>, target: Object, cx: &mut ViewContext<Self>) {
+    pub fn change_surrounds(
+        &mut self,
+        text: Arc<str>,
+        target: Object,
+        cx: &mut ModelContext<Self>,
+    ) {
         if let Some(will_replace_pair) = object_to_bracket_pair(target) {
             self.stop_recording(cx);
             self.update_editor(cx, |_, editor, cx| {
@@ -336,7 +341,7 @@ impl Vim {
     pub fn check_and_move_to_valid_bracket_pair(
         &mut self,
         object: Object,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> bool {
         let mut valid = false;
         if let Some(pair) = object_to_bracket_pair(object) {

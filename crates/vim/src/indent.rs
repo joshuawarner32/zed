@@ -3,7 +3,7 @@ use collections::HashMap;
 use editor::{display_map::ToDisplayPoint, Bias, Editor};
 use gpui::actions;
 use language::SelectionGoal;
-use ui::ViewContext;
+use ui::ModelContext;
 
 #[derive(PartialEq, Eq)]
 pub(crate) enum IndentDirection {
@@ -13,7 +13,7 @@ pub(crate) enum IndentDirection {
 
 actions!(vim, [Indent, Outdent,]);
 
-pub(crate) fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
+pub(crate) fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
     Vim::action(editor, cx, |vim, _: &Indent, cx| {
         vim.record_current_action(cx);
         let count = vim.take_count(cx).unwrap_or(1);
@@ -57,7 +57,7 @@ impl Vim {
         motion: Motion,
         times: Option<usize>,
         dir: IndentDirection,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.stop_recording(cx);
         self.update_editor(cx, |_, editor, cx| {
@@ -91,7 +91,7 @@ impl Vim {
         object: Object,
         around: bool,
         dir: IndentDirection,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.stop_recording(cx);
         self.update_editor(cx, |_, editor, cx| {

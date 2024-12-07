@@ -258,7 +258,7 @@ impl TableView {
 }
 
 impl Render for TableView {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let data = match &self.table.data {
             Some(data) => data,
             None => return div().into_any_element(),

@@ -5,7 +5,7 @@ use editor::Editor;
 use fuzzy::{match_strings, StringMatch, StringMatchCandidate};
 use gpui::{
     actions, AppContext, DismissEvent, EventEmitter, FocusHandle, FocusableView, Model,
-    ParentElement, Render, Styled, Task, View, ViewContext, VisualContext, WeakView,
+    ParentElement, Render, Styled, Task, View, ModelContext, VisualContext, WeakView,
 };
 use language::{LanguageName, Toolchain, ToolchainList};
 use picker::{Picker, PickerDelegate};
@@ -18,21 +18,21 @@ use workspace::{ModalView, Workspace};
 actions!(toolchain, [Select]);
 
 pub fn init(cx: &mut AppContext) {
-    cx.observe_new_views(ToolchainSelector::register).detach();
+    cx.observe_new_models(ToolchainSelector::register).detach();
 }
 
 pub struct ToolchainSelector {
-    picker: View<Picker<ToolchainSelectorDelegate>>,
+    picker: Model<Picker<ToolchainSelectorDelegate>>,
 }
 
 impl ToolchainSelector {
-    fn register(workspace: &mut Workspace, _: &mut ViewContext<Workspace>) {
+    fn register(workspace: &mut Workspace, _: &mut ModelContext<Workspace>) {
         workspace.register_action(move |workspace, _: &Select, cx| {
             Self::toggle(workspace, cx);
         });
     }
 
-    fn toggle(workspace: &mut Workspace, cx: &mut ViewContext<Workspace>) -> Option<()> {
+    fn toggle(workspace: &mut Workspace, cx: &mut ModelContext<Workspace>) -> Option<()> {
         let (_, buffer, _) = workspace
             .active_item(cx)?
             .act_as::<Editor>(cx)?
@@ -77,16 +77,16 @@ impl ToolchainSelector {
     }
 
     fn new(
-        workspace: WeakView<Workspace>,
+        workspace: WeakModel<Workspace>,
         project: Model<Project>,
         active_toolchain: Option<Toolchain>,
         worktree_id: WorktreeId,
         worktree_root: Arc<Path>,
         language_name: LanguageName,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Self {
         let view = cx.view().downgrade();
-        let picker = cx.new_view(|cx| {
+        let picker = cx.new_model(|cx| {
             let delegate = ToolchainSelectorDelegate::new(
                 active_toolchain,
                 view,
@@ -104,7 +104,7 @@ impl ToolchainSelector {
 }
 
 impl Render for ToolchainSelector {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex().w(rems(34.)).child(self.picker.clone())
     }
 }
@@ -119,11 +119,11 @@ impl EventEmitter<DismissEvent> for ToolchainSelector {}
 impl ModalView for ToolchainSelector {}
 
 pub struct ToolchainSelectorDelegate {
-    toolchain_selector: WeakView<ToolchainSelector>,
+    toolchain_selector: WeakModel<ToolchainSelector>,
     candidates: ToolchainList,
     matches: Vec<StringMatch>,
     selected_index: usize,
-    workspace: WeakView<Workspace>,
+    workspace: WeakModel<Workspace>,
     worktree_id: WorktreeId,
     worktree_abs_path_root: Arc<Path>,
     placeholder_text: Arc<str>,
@@ -134,13 +134,13 @@ impl ToolchainSelectorDelegate {
     #[allow(clippy::too_many_arguments)]
     fn new(
         active_toolchain: Option<Toolchain>,
-        language_selector: WeakView<ToolchainSelector>,
-        workspace: WeakView<Workspace>,
+        language_selector: WeakModel<ToolchainSelector>,
+        workspace: WeakModel<Workspace>,
         worktree_id: WorktreeId,
         worktree_abs_path_root: Arc<Path>,
         project: Model<Project>,
         language_name: LanguageName,
-        cx: &mut ViewContext<Picker<Self>>,
+        cx: &mut ModelContext<Picker<Self>>,
     ) -> Self {
         let _fetch_candidates_task = cx.spawn({
             let project = project.clone();
@@ -217,7 +217,7 @@ impl PickerDelegate for ToolchainSelectorDelegate {
         self.matches.len()
     }
 
-    fn confirm(&mut self, _: bool, cx: &mut ViewContext<Picker<Self>>) {
+    fn confirm(&mut self, _: bool, cx: &mut ModelContext<Picker<Self>>) {
         if let Some(string_match) = self.matches.get(self.selected_index) {
             let toolchain = self.candidates.toolchains[string_match.candidate_id].clone();
             if let Some(workspace_id) = self
@@ -249,7 +249,7 @@ impl PickerDelegate for ToolchainSelectorDelegate {
         self.dismissed(cx);
     }
 
-    fn dismissed(&mut self, cx: &mut ViewContext<Picker<Self>>) {
+    fn dismissed(&mut self, cx: &mut ModelContext<Picker<Self>>) {
         self.toolchain_selector
             .update(cx, |_, cx| cx.emit(DismissEvent))
             .log_err();
@@ -259,14 +259,14 @@ impl PickerDelegate for ToolchainSelectorDelegate {
         self.selected_index
     }
 
-    fn set_selected_index(&mut self, ix: usize, _: &mut ViewContext<Picker<Self>>) {
+    fn set_selected_index(&mut self, ix: usize, _: &mut ModelContext<Picker<Self>>) {
         self.selected_index = ix;
     }
 
     fn update_matches(
         &mut self,
         query: String,
-        cx: &mut ViewContext<Picker<Self>>,
+        cx: &mut ModelContext<Picker<Self>>,
     ) -> gpui::Task<()> {
         let background = cx.background_executor().clone();
         let candidates = self.candidates.clone();
@@ -326,7 +326,7 @@ impl PickerDelegate for ToolchainSelectorDelegate {
         &self,
         ix: usize,
         selected: bool,
-        _: &mut ViewContext<Picker<Self>>,
+        _: &mut ModelContext<Picker<Self>>,
     ) -> Option<Self::ListItem> {
         let mat = &self.matches[ix];
         let toolchain = &self.candidates.toolchains[mat.candidate_id];

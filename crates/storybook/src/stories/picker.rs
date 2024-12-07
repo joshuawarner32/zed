@@ -6,7 +6,7 @@ use ui::{prelude::*, ListItemSpacing};
 use ui::{Label, ListItem};
 
 pub struct PickerStory {
-    picker: View<Picker<Delegate>>,
+    picker: Model<Picker<Delegate>>,
 }
 
 struct Delegate {
@@ -49,7 +49,7 @@ impl PickerDelegate for Delegate {
         &self,
         ix: usize,
         selected: bool,
-        _cx: &mut gpui::ViewContext<Picker<Self>>,
+        _cx: &mut gpui::ModelContext<Picker<Self>>,
     ) -> Option<Self::ListItem> {
         let candidate_ix = self.matches.get(ix)?;
         // TASK: Make StringMatchCandidate::string a SharedString
@@ -68,12 +68,12 @@ impl PickerDelegate for Delegate {
         self.selected_ix
     }
 
-    fn set_selected_index(&mut self, ix: usize, cx: &mut gpui::ViewContext<Picker<Self>>) {
+    fn set_selected_index(&mut self, ix: usize, cx: &mut gpui::ModelContext<Picker<Self>>) {
         self.selected_ix = ix;
         cx.notify();
     }
 
-    fn confirm(&mut self, secondary: bool, _cx: &mut gpui::ViewContext<Picker<Self>>) {
+    fn confirm(&mut self, secondary: bool, _cx: &mut gpui::ModelContext<Picker<Self>>) {
         let candidate_ix = self.matches[self.selected_ix];
         let candidate = self.candidates[candidate_ix].string.clone();
 
@@ -84,14 +84,14 @@ impl PickerDelegate for Delegate {
         }
     }
 
-    fn dismissed(&mut self, cx: &mut gpui::ViewContext<Picker<Self>>) {
+    fn dismissed(&mut self, cx: &mut gpui::ModelContext<Picker<Self>>) {
         cx.quit();
     }
 
     fn update_matches(
         &mut self,
         query: String,
-        cx: &mut gpui::ViewContext<Picker<Self>>,
+        cx: &mut gpui::ModelContext<Picker<Self>>,
     ) -> Task<()> {
         let candidates = self.candidates.clone();
         self.matches = cx
@@ -113,8 +113,8 @@ impl PickerDelegate for Delegate {
 }
 
 impl PickerStory {
-    pub fn new(cx: &mut WindowContext) -> View<Self> {
-        cx.new_view(|cx| {
+    pub fn new(cx: &mut WindowContext) -> Model<Self> {
+        cx.new_model(|cx| {
             cx.bind_keys([
                 KeyBinding::new("up", menu::SelectPrev, Some("picker")),
                 KeyBinding::new("pageup", menu::SelectFirst, Some("picker")),
@@ -134,7 +134,7 @@ impl PickerStory {
             ]);
 
             PickerStory {
-                picker: cx.new_view(|cx| {
+                picker: cx.new_model(|cx| {
                     let mut delegate = Delegate::new(&[
                         "Baguette (France)",
                         "Baklava (Turkey)",
@@ -198,7 +198,7 @@ impl PickerStory {
 }
 
 impl Render for PickerStory {
-    fn render(&mut self, cx: &mut gpui::ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut gpui::ModelContext<Self>) -> impl IntoElement {
         div()
             .bg(cx.theme().styles.colors.background)
             .size_full()

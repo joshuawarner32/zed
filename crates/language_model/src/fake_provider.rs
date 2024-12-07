@@ -9,7 +9,7 @@ use http_client::Result;
 use parking_lot::Mutex;
 use serde::Serialize;
 use std::sync::Arc;
-use ui::WindowContext;
+use ui::Window;
 
 pub fn language_model_id() -> LanguageModelId {
     LanguageModelId::from("fake".to_string())
@@ -59,7 +59,7 @@ impl LanguageModelProvider for FakeLanguageModelProvider {
         Task::ready(Ok(()))
     }
 
-    fn configuration_view(&self, _: &mut WindowContext) -> AnyView {
+    fn configuration_view(&self, _: &mut WindowContext) -> AnyModel {
         unimplemented!()
     }
 

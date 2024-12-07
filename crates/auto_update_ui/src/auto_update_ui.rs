@@ -2,7 +2,7 @@ mod update_notification;
 
 use auto_update::AutoUpdater;
 use editor::{Editor, MultiBuffer};
-use gpui::{actions, prelude::*, AppContext, SharedString, View, ViewContext};
+use gpui::{actions, prelude::*, AppContext, SharedString, View, ModelContext};
 use http_client::HttpClient;
 use markdown_preview::markdown_preview_view::{MarkdownPreviewMode, MarkdownPreviewView};
 use release_channel::{AppVersion, ReleaseChannel};
@@ -17,7 +17,7 @@ use crate::update_notification::UpdateNotification;
 actions!(auto_update, [ViewReleaseNotesLocally]);
 
 pub fn init(cx: &mut AppContext) {
-    cx.observe_new_views(|workspace: &mut Workspace, _cx| {
+    cx.observe_new_models(|workspace: &mut Workspace, _cx| {
         workspace.register_action(|workspace, _: &ViewReleaseNotesLocally, cx| {
             view_release_notes_locally(workspace, cx);
         });
@@ -31,7 +31,7 @@ struct ReleaseNotesBody {
     release_notes: String,
 }
 
-fn view_release_notes_locally(workspace: &mut Workspace, cx: &mut ViewContext<Workspace>) {
+fn view_release_notes_locally(workspace: &mut Workspace, cx: &mut ModelContext<Workspace>) {
     let release_channel = ReleaseChannel::global(cx);
 
     let url = match release_channel {
@@ -89,11 +89,11 @@ fn view_release_notes_locally(workspace: &mut Workspace, cx: &mut ViewContext<Wo
                             let buffer = cx.new_model(|cx| MultiBuffer::singleton(buffer, cx));
 
                             let tab_description = SharedString::from(body.title.to_string());
-                            let editor = cx.new_view(|cx| {
+                            let editor = cx.new_model(|cx| {
                                 Editor::for_multibuffer(buffer, Some(project), true, cx)
                             });
                             let workspace_handle = workspace.weak_handle();
-                            let view: View<MarkdownPreviewView> = MarkdownPreviewView::new(
+                            let view: Model<MarkdownPreviewView> = MarkdownPreviewView::new(
                                 MarkdownPreviewMode::Default,
                                 editor,
                                 workspace_handle,
@@ -117,7 +117,7 @@ fn view_release_notes_locally(workspace: &mut Workspace, cx: &mut ViewContext<Wo
         .detach();
 }
 
-pub fn notify_of_any_new_update(cx: &mut ViewContext<Workspace>) -> Option<()> {
+pub fn notify_of_any_new_update(cx: &mut ModelContext<Workspace>) -> Option<()> {
     let updater = AutoUpdater::get(cx)?;
     let version = updater.read(cx).current_version();
     let should_show_notification = updater.read(cx).should_show_update_notification(cx);
@@ -130,7 +130,7 @@ pub fn notify_of_any_new_update(cx: &mut ViewContext<Workspace>) -> Option<()> {
                 workspace.show_notification(
                     NotificationId::unique::<UpdateNotification>(),
                     cx,
-                    |cx| cx.new_view(|_| UpdateNotification::new(version, workspace_handle)),
+                    |cx| cx.new_model(|_| UpdateNotification::new(version, workspace_handle)),
                 );
                 updater.update(cx, |updater, cx| {
                     updater

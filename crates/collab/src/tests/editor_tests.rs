@@ -201,7 +201,7 @@ async fn test_newline_above_or_below_does_not_move_guest_cursor(
         .await
         .unwrap();
     let cx_a = cx_a.add_empty_window();
-    let editor_a = cx_a.new_view(|cx| Editor::for_buffer(buffer_a, Some(project_a), cx));
+    let editor_a = cx_a.new_model(|cx| Editor::for_buffer(buffer_a, Some(project_a), cx));
 
     let mut editor_cx_a = EditorTestContext {
         cx: cx_a.clone(),
@@ -216,7 +216,7 @@ async fn test_newline_above_or_below_does_not_move_guest_cursor(
         .update(cx_b, |p, cx| p.open_buffer((worktree_id, "a.txt"), cx))
         .await
         .unwrap();
-    let editor_b = cx_b.new_view(|cx| Editor::for_buffer(buffer_b, Some(project_b), cx));
+    let editor_b = cx_b.new_model(|cx| Editor::for_buffer(buffer_b, Some(project_b), cx));
 
     let mut editor_cx_b = EditorTestContext {
         cx: cx_b.clone(),
@@ -318,7 +318,7 @@ async fn test_collaborating_with_completion(cx_a: &mut TestAppContext, cx_b: &mu
         .unwrap();
     let cx_b = cx_b.add_empty_window();
     let editor_b =
-        cx_b.new_view(|cx| Editor::for_buffer(buffer_b.clone(), Some(project_b.clone()), cx));
+        cx_b.new_model(|cx| Editor::for_buffer(buffer_b.clone(), Some(project_b.clone()), cx));
 
     let fake_language_server = fake_language_servers.next().await.unwrap();
     cx_a.background_executor.run_until_parked();
@@ -1191,7 +1191,7 @@ async fn test_share_project(
         .await
         .unwrap();
 
-    let editor_b = cx_b.new_view(|cx| Editor::for_buffer(buffer_b, None, cx));
+    let editor_b = cx_b.new_model(|cx| Editor::for_buffer(buffer_b, None, cx));
 
     // Client A sees client B's selection
     executor.run_until_parked();
@@ -1296,7 +1296,7 @@ async fn test_on_input_format_from_host_to_guest(
         .await
         .unwrap();
     let cx_a = cx_a.add_empty_window();
-    let editor_a = cx_a.new_view(|cx| Editor::for_buffer(buffer_a, Some(project_a.clone()), cx));
+    let editor_a = cx_a.new_model(|cx| Editor::for_buffer(buffer_a, Some(project_a.clone()), cx));
 
     let fake_language_server = fake_language_servers.next().await.unwrap();
     executor.run_until_parked();
@@ -1416,7 +1416,7 @@ async fn test_on_input_format_from_guest_to_host(
         .await
         .unwrap();
     let cx_b = cx_b.add_empty_window();
-    let editor_b = cx_b.new_view(|cx| Editor::for_buffer(buffer_b, Some(project_b.clone()), cx));
+    let editor_b = cx_b.new_model(|cx| Editor::for_buffer(buffer_b, Some(project_b.clone()), cx));
 
     let fake_language_server = fake_language_servers.next().await.unwrap();
     executor.run_until_parked();
@@ -2206,9 +2206,9 @@ async fn test_collaborating_with_editorconfig(
         .unwrap();
     let cx_a = cx_a.add_empty_window();
     let main_editor_a =
-        cx_a.new_view(|cx| Editor::for_buffer(main_buffer_a, Some(project_a.clone()), cx));
+        cx_a.new_model(|cx| Editor::for_buffer(main_buffer_a, Some(project_a.clone()), cx));
     let other_editor_a =
-        cx_a.new_view(|cx| Editor::for_buffer(other_buffer_a, Some(project_a), cx));
+        cx_a.new_model(|cx| Editor::for_buffer(other_buffer_a, Some(project_a), cx));
     let mut main_editor_cx_a = EditorTestContext {
         cx: cx_a.clone(),
         window: cx_a.handle(),
@@ -2238,9 +2238,9 @@ async fn test_collaborating_with_editorconfig(
         .unwrap();
     let cx_b = cx_b.add_empty_window();
     let main_editor_b =
-        cx_b.new_view(|cx| Editor::for_buffer(main_buffer_b, Some(project_b.clone()), cx));
+        cx_b.new_model(|cx| Editor::for_buffer(main_buffer_b, Some(project_b.clone()), cx));
     let other_editor_b =
-        cx_b.new_view(|cx| Editor::for_buffer(other_buffer_b, Some(project_b.clone()), cx));
+        cx_b.new_model(|cx| Editor::for_buffer(other_buffer_b, Some(project_b.clone()), cx));
     let mut main_editor_cx_b = EditorTestContext {
         cx: cx_b.clone(),
         window: cx_b.handle(),

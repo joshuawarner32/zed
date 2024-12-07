@@ -1,7 +1,7 @@
 use editor::Editor;
 use gpui::{
-    rems, EventEmitter, IntoElement, ParentElement, Render, Styled, Subscription, View,
-    ViewContext, WeakView,
+    rems, EventEmitter, IntoElement, ModelContext, ParentElement, Render, Styled, Subscription,
+    View, WeakView,
 };
 use language::Diagnostic;
 use ui::{h_flex, prelude::*, Button, ButtonLike, Color, Icon, IconName, Label, Tooltip};
@@ -11,14 +11,14 @@ use crate::{Deploy, ProjectDiagnosticsEditor};
 
 pub struct DiagnosticIndicator {
     summary: project::DiagnosticSummary,
-    active_editor: Option<WeakView<Editor>>,
-    workspace: WeakView<Workspace>,
+    active_editor: Option<WeakModel<Editor>>,
+    workspace: WeakModel<Workspace>,
     current_diagnostic: Option<Diagnostic>,
     _observe_active_editor: Option<Subscription>,
 }
 
 impl Render for DiagnosticIndicator {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let diagnostic_indicator = match (self.summary.error_count, self.summary.warning_count) {
             (0, 0) => h_flex().map(|this| {
                 this.child(
@@ -96,7 +96,7 @@ impl Render for DiagnosticIndicator {
 }
 
 impl DiagnosticIndicator {
-    pub fn new(workspace: &Workspace, cx: &mut ViewContext<Self>) -> Self {
+    pub fn new(workspace: &Workspace, cx: &mut ModelContext<Self>) -> Self {
         let project = workspace.project();
         cx.subscribe(project, |this, project, event, cx| match event {
             project::Event::DiskBasedDiagnosticsStarted { .. } => {
@@ -127,7 +127,7 @@ impl DiagnosticIndicator {
         }
     }
 
-    fn go_to_next_diagnostic(&mut self, cx: &mut ViewContext<Self>) {
+    fn go_to_next_diagnostic(&mut self, cx: &mut ModelContext<Self>) {
         if let Some(editor) = self.active_editor.as_ref().and_then(|e| e.upgrade()) {
             editor.update(cx, |editor, cx| {
                 editor.go_to_diagnostic_impl(editor::Direction::Next, cx);
@@ -135,7 +135,7 @@ impl DiagnosticIndicator {
         }
     }
 
-    fn update(&mut self, editor: View<Editor>, cx: &mut ViewContext<Self>) {
+    fn update(&mut self, editor: Model<Editor>, cx: &mut ModelContext<Self>) {
         let (buffer, cursor_position) = editor.update(cx, |editor, cx| {
             let buffer = editor.buffer().read(cx).snapshot(cx);
             let cursor_position = editor.selections.newest::<usize>(cx).head();
@@ -159,7 +159,7 @@ impl StatusItemView for DiagnosticIndicator {
     fn set_active_pane_item(
         &mut self,
         active_pane_item: Option<&dyn ItemHandle>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         if let Some(editor) = active_pane_item.and_then(|item| item.downcast::<Editor>()) {
             self.active_editor = Some(editor.downgrade());

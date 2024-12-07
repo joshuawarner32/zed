@@ -7,7 +7,7 @@ use std::{fmt::Write, time::Duration};
 use text::{Point, Selection};
 use ui::{
     div, Button, ButtonCommon, Clickable, FluentBuilder, IntoElement, LabelSize, ParentElement,
-    Render, Tooltip, ViewContext,
+    Render, Tooltip, ModelContext,
 };
 use util::paths::FILE_ROW_COLUMN_DELIMITER;
 use workspace::{item::ItemHandle, StatusItemView, Workspace};
@@ -22,7 +22,7 @@ pub(crate) struct SelectionStats {
 pub struct CursorPosition {
     position: Option<Point>,
     selected_count: SelectionStats,
-    workspace: WeakView<Workspace>,
+    workspace: WeakModel<Workspace>,
     update_position: Task<()>,
     _observe_active_editor: Option<Subscription>,
 }
@@ -40,9 +40,9 @@ impl CursorPosition {
 
     fn update_position(
         &mut self,
-        editor: View<Editor>,
+        editor: Model<Editor>,
         debounce: Option<Duration>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         let editor = editor.downgrade();
         self.update_position = cx.spawn(|cursor_position, mut cx| async move {
@@ -139,7 +139,7 @@ impl CursorPosition {
 }
 
 impl Render for CursorPosition {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         div().when_some(self.position, |el, position| {
             let mut text = format!(
                 "{}{FILE_ROW_COLUMN_DELIMITER}{}",
@@ -182,7 +182,7 @@ impl StatusItemView for CursorPosition {
     fn set_active_pane_item(
         &mut self,
         active_pane_item: Option<&dyn ItemHandle>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         if let Some(editor) = active_pane_item.and_then(|item| item.act_as::<Editor>(cx)) {
             self._observe_active_editor =

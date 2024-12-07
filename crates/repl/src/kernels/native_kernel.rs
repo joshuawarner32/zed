@@ -111,7 +111,7 @@ impl NativeRunningKernel {
         working_directory: PathBuf,
         fs: Arc<dyn Fs>,
         // todo: convert to weak view
-        session: View<Session>,
+        session: Model<Session>,
         cx: &mut WindowContext,
     ) -> Task<Result<Box<dyn RunningKernel>>> {
         cx.spawn(|cx| async move {

@@ -53,7 +53,7 @@ impl SlashCommand for TerminalSlashCommand {
         self: Arc<Self>,
         _arguments: &[String],
         _cancel: Arc<AtomicBool>,
-        _workspace: Option<WeakView<Workspace>>,
+        _workspace: Option<WeakModel<Workspace>>,
         _cx: &mut WindowContext,
     ) -> Task<Result<Vec<ArgumentCompletion>>> {
         Task::ready(Ok(Vec::new()))
@@ -64,7 +64,7 @@ impl SlashCommand for TerminalSlashCommand {
         arguments: &[String],
         _context_slash_command_output_sections: &[SlashCommandOutputSection<language::Anchor>],
         _context_buffer: BufferSnapshot,
-        workspace: WeakView<Workspace>,
+        workspace: WeakModel<Workspace>,
         _delegate: Option<Arc<dyn LspAdapterDelegate>>,
         cx: &mut WindowContext,
     ) -> Task<SlashCommandResult> {
@@ -107,9 +107,9 @@ impl SlashCommand for TerminalSlashCommand {
 }
 
 fn resolve_active_terminal(
-    workspace: &View<Workspace>,
+    workspace: &Model<Workspace>,
     cx: &WindowContext,
-) -> Option<View<TerminalView>> {
+) -> Option<Model<TerminalView>> {
     if let Some(terminal_view) = workspace
         .read(cx)
         .active_item(cx)

@@ -2,7 +2,7 @@ use crate::{request::PromptUserDeviceFlow, Copilot, Status};
 use gpui::{
     div, AppContext, ClipboardItem, DismissEvent, Element, EventEmitter, FocusHandle,
     FocusableView, InteractiveElement, IntoElement, Model, MouseDownEvent, ParentElement, Render,
-    Styled, Subscription, ViewContext,
+    Styled, Subscription, ModelContext,
 };
 use ui::{prelude::*, Button, Label, Vector, VectorName};
 use util::ResultExt as _;
@@ -95,7 +95,7 @@ impl EventEmitter<DismissEvent> for CopilotCodeVerification {}
 impl ModalView for CopilotCodeVerification {}
 
 impl CopilotCodeVerification {
-    pub fn new(copilot: &Model<Copilot>, cx: &mut ViewContext<Self>) -> Self {
+    pub fn new(copilot: &Model<Copilot>, cx: &mut ModelContext<Self>) -> Self {
         let status = copilot.read(cx).status();
         Self {
             status,
@@ -113,14 +113,14 @@ impl CopilotCodeVerification {
         }
     }
 
-    pub fn set_status(&mut self, status: Status, cx: &mut ViewContext<Self>) {
+    pub fn set_status(&mut self, status: Status, cx: &mut ModelContext<Self>) {
         self.status = status;
         cx.notify();
     }
 
     fn render_device_code(
         data: &PromptUserDeviceFlow,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> impl IntoElement {
         let copied = cx
             .read_from_clipboard()
@@ -152,7 +152,7 @@ impl CopilotCodeVerification {
     fn render_prompting_modal(
         connect_clicked: bool,
         data: &PromptUserDeviceFlow,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> impl Element {
         let connect_button_label = if connect_clicked {
             "Waiting for connection..."
@@ -191,7 +191,7 @@ impl CopilotCodeVerification {
                     .on_click(cx.listener(|_, _, cx| cx.emit(DismissEvent))),
             )
     }
-    fn render_enabled_modal(cx: &mut ViewContext<Self>) -> impl Element {
+    fn render_enabled_modal(cx: &mut ModelContext<Self>) -> impl Element {
         v_flex()
             .gap_2()
             .child(Headline::new("Copilot Enabled!").size(HeadlineSize::Large))
@@ -205,7 +205,7 @@ impl CopilotCodeVerification {
             )
     }
 
-    fn render_unauthorized_modal(cx: &mut ViewContext<Self>) -> impl Element {
+    fn render_unauthorized_modal(cx: &mut ModelContext<Self>) -> impl Element {
         v_flex()
             .child(Headline::new("You must have an active GitHub Copilot subscription.").size(HeadlineSize::Large))
 
@@ -232,7 +232,7 @@ impl CopilotCodeVerification {
 }
 
 impl Render for CopilotCodeVerification {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let prompt = match &self.status {
             Status::SigningIn {
                 prompt: Some(prompt),

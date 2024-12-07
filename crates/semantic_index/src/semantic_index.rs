@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use ui::ViewContext;
+use ui::ModelContext;
 use util::ResultExt as _;
 use workspace::Workspace;
 
@@ -57,8 +57,8 @@ impl SemanticDb {
             .context("opening database connection")?;
 
         cx.update(|cx| {
-            cx.observe_new_views(
-                |workspace: &mut Workspace, cx: &mut ViewContext<Workspace>| {
+            cx.observe_new_models(
+                |workspace: &mut Workspace, cx: &mut ModelContext<Workspace>| {
                     let project = workspace.project().clone();
 
                     if cx.has_global::<SemanticDb>() {

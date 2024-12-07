@@ -149,8 +149,8 @@ impl LayoutRect {
 /// We need to keep a reference to the view for mouse events, do we need it for any other terminal stuff, or can we move that to connection?
 pub struct TerminalElement {
     terminal: Model<Terminal>,
-    terminal_view: View<TerminalView>,
-    workspace: WeakView<Workspace>,
+    terminal_view: Model<TerminalView>,
+    workspace: WeakModel<Workspace>,
     focus: FocusHandle,
     focused: bool,
     cursor_visible: bool,
@@ -171,8 +171,8 @@ impl TerminalElement {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         terminal: Model<Terminal>,
-        terminal_view: View<TerminalView>,
-        workspace: WeakView<Workspace>,
+        terminal_view: Model<TerminalView>,
+        workspace: WeakModel<Workspace>,
         focus: FocusHandle,
         focused: bool,
         cursor_visible: bool,
@@ -968,7 +968,7 @@ impl IntoElement for TerminalElement {
 
 struct TerminalInputHandler {
     terminal: Model<Terminal>,
-    workspace: WeakView<Workspace>,
+    workspace: WeakModel<Workspace>,
     cursor_bounds: Option<Bounds<Pixels>>,
 }
 

@@ -25,7 +25,7 @@ use strum::IntoEnumIterator;
 use ui::{
     div, h_flex, v_flex, Button, ButtonCommon, Clickable, Color, Context, FixedWidth, Icon,
     IconName, IconPosition, IconSize, IntoElement, Label, LabelCommon, ParentElement, Styled,
-    ViewContext, VisualContext, WindowContext,
+    ModelContext, VisualContext, WindowContext,
 };
 
 use super::anthropic::count_anthropic_tokens;
@@ -131,7 +131,7 @@ impl LanguageModelProvider for CopilotChatLanguageModelProvider {
 
     fn configuration_view(&self, cx: &mut WindowContext) -> AnyView {
         let state = self.state.clone();
-        cx.new_view(|cx| ConfigurationView::new(state, cx)).into()
+        cx.new_model(|cx| ConfigurationView::new(state, cx)).into()
     }
 
     fn reset_credentials(&self, _cx: &mut AppContext) -> Task<Result<()>> {
@@ -303,7 +303,7 @@ struct ConfigurationView {
 }
 
 impl ConfigurationView {
-    pub fn new(state: Model<State>, cx: &mut ViewContext<Self>) -> Self {
+    pub fn new(state: Model<State>, cx: &mut ModelContext<Self>) -> Self {
         let copilot = Copilot::global(cx);
 
         Self {
@@ -320,7 +320,7 @@ impl ConfigurationView {
 }
 
 impl Render for ConfigurationView {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         if self.state.read(cx).is_authenticated(cx) {
             const LABEL: &str = "Authorized.";
             h_flex()

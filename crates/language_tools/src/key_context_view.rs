@@ -7,8 +7,8 @@ use serde_json::json;
 use settings::get_key_equivalents;
 use ui::{
     div, h_flex, px, v_flex, ButtonCommon, Clickable, FluentBuilder, InteractiveElement, Label,
-    LabelCommon, LabelSize, ParentElement, SharedString, StatefulInteractiveElement, Styled,
-    ViewContext, VisualContext, WindowContext,
+    LabelCommon, LabelSize, ModelContext, ParentElement, SharedString, StatefulInteractiveElement,
+    Styled, VisualContext, WindowContext,
 };
 use ui::{Button, ButtonStyle};
 use workspace::Item;
@@ -36,7 +36,7 @@ struct KeyContextView {
 }
 
 impl KeyContextView {
-    pub fn new(cx: &mut ViewContext<Self>) -> Self {
+    pub fn new(cx: &mut ModelContext<Self>) -> Self {
         let sub1 = cx.observe_keystrokes(|this, e, cx| {
             let mut pending = this.pending_keystrokes.take().unwrap_or_default();
             pending.push(e.keystroke.clone());
@@ -115,7 +115,7 @@ impl FocusableView for KeyContextView {
     }
 }
 impl KeyContextView {
-    fn set_context_stack(&mut self, stack: Vec<KeyContext>, cx: &mut ViewContext<Self>) {
+    fn set_context_stack(&mut self, stack: Vec<KeyContext>, cx: &mut ModelContext<Self>) {
         self.context_stack = stack;
         cx.notify()
     }
@@ -156,17 +156,17 @@ impl Item for KeyContextView {
     fn clone_on_split(
         &self,
         _workspace_id: Option<workspace::WorkspaceId>,
-        cx: &mut ViewContext<Self>,
-    ) -> Option<gpui::View<Self>>
+        cx: &mut ModelContext<Self>,
+    ) -> Option<gpui::Model<Self>>
     where
         Self: Sized,
     {
-        Some(cx.new_view(Self::new))
+        Some(cx.new_model(Self::new))
     }
 }
 
 impl Render for KeyContextView {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl ui::IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl ui::IntoElement {
         use itertools::Itertools;
         let key_equivalents = get_key_equivalents(cx.keyboard_layout());
         v_flex()
@@ -210,7 +210,7 @@ impl Render for KeyContextView {
                             .style(ButtonStyle::Filled)
                             .key_binding(ui::KeyBinding::for_action(
                                 &zed_actions::OpenDefaultKeymap,
-                                cx,
+                                window, cx,
                             ))
                             .on_click(|_, cx| {
                                 cx.dispatch_action(workspace::SplitRight.boxed_clone());

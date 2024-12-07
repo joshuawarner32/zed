@@ -2,14 +2,14 @@ use crate::{motion::Motion, object::Object, Vim};
 use collections::HashMap;
 use editor::{display_map::ToDisplayPoint, Bias};
 use language::SelectionGoal;
-use ui::ViewContext;
+use ui::ModelContext;
 
 impl Vim {
     pub fn toggle_comments_motion(
         &mut self,
         motion: Motion,
         times: Option<usize>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.stop_recording(cx);
         self.update_editor(cx, |_, editor, cx| {
@@ -38,7 +38,7 @@ impl Vim {
         &mut self,
         object: Object,
         around: bool,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.stop_recording(cx);
         self.update_editor(cx, |_, editor, cx| {

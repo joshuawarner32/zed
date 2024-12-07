@@ -8,7 +8,7 @@ use futures::future::join_all;
 use gpui::{
     actions, Action, AnchorCorner, AnyView, AppContext, AsyncWindowContext, Entity, EventEmitter,
     ExternalPaths, FocusHandle, FocusableView, IntoElement, Model, ParentElement, Pixels, Render,
-    Styled, Subscription, Task, View, ViewContext, VisualContext, WeakView, WindowContext,
+    Styled, Subscription, Task, View, ModelContext, VisualContext, WeakView, WindowContext,
 };
 use itertools::Itertools;
 use project::{terminals::TerminalKind, Fs, ProjectEntryId};
@@ -41,8 +41,8 @@ const TERMINAL_PANEL_KEY: &str = "TerminalPanel";
 actions!(terminal_panel, [ToggleFocus]);
 
 pub fn init(cx: &mut AppContext) {
-    cx.observe_new_views(
-        |workspace: &mut Workspace, _: &mut ViewContext<Workspace>| {
+    cx.observe_new_models(
+        |workspace: &mut Workspace, _: &mut ModelContext<Workspace>| {
             workspace.register_action(TerminalPanel::new_terminal);
             workspace.register_action(TerminalPanel::open_terminal);
             workspace.register_action(|workspace, _: &ToggleFocus, cx| {
@@ -60,9 +60,9 @@ pub fn init(cx: &mut AppContext) {
 }
 
 pub struct TerminalPanel {
-    pane: View<Pane>,
+    pane: Model<Pane>,
     fs: Arc<dyn Fs>,
-    workspace: WeakView<Workspace>,
+    workspace: WeakModel<Workspace>,
     width: Option<Pixels>,
     height: Option<Pixels>,
     pending_serialization: Task<Option<()>>,
@@ -75,8 +75,8 @@ pub struct TerminalPanel {
 }
 
 impl TerminalPanel {
-    fn new(workspace: &Workspace, cx: &mut ViewContext<Self>) -> Self {
-        let pane = cx.new_view(|cx| {
+    fn new(workspace: &Workspace, cx: &mut ModelContext<Self>) -> Self {
+        let pane = cx.new_model(|cx| {
             let mut pane = Pane::new(
                 workspace.weak_handle(),
                 workspace.project().clone(),
@@ -138,8 +138,8 @@ impl TerminalPanel {
 
                 ControlFlow::Break(())
             });
-            let buffer_search_bar = cx.new_view(search::BufferSearchBar::new);
-            let breadcrumbs = cx.new_view(|_| Breadcrumbs::new());
+            let buffer_search_bar = cx.new_model(search::BufferSearchBar::new);
+            let breadcrumbs = cx.new_model(|_| Breadcrumbs::new());
             pane.toolbar().update(cx, |toolbar, cx| {
                 toolbar.add_item(buffer_search_bar, cx);
                 toolbar.add_item(breadcrumbs, cx);
@@ -170,7 +170,7 @@ impl TerminalPanel {
         this
     }
 
-    pub fn asssistant_enabled(&mut self, enabled: bool, cx: &mut ViewContext<Self>) {
+    pub fn asssistant_enabled(&mut self, enabled: bool, cx: &mut ModelContext<Self>) {
         self.assistant_enabled = enabled;
         if enabled {
             let focus_handle = self
@@ -180,7 +180,7 @@ impl TerminalPanel {
                 .map(|item| item.focus_handle(cx))
                 .unwrap_or(self.focus_handle(cx));
             self.assistant_tab_bar_button = Some(
-                cx.new_view(move |_| InlineAssistTabBarButton { focus_handle })
+                cx.new_model(move |_| InlineAssistTabBarButton { focus_handle })
                     .into(),
             );
         } else {
@@ -189,7 +189,7 @@ impl TerminalPanel {
         self.apply_tab_bar_buttons(cx);
     }
 
-    fn apply_tab_bar_buttons(&self, cx: &mut ViewContext<Self>) {
+    fn apply_tab_bar_buttons(&self, cx: &mut ModelContext<Self>) {
         let assistant_tab_bar_button = self.assistant_tab_bar_button.clone();
         self.pane.update(cx, |pane, cx| {
             pane.set_render_tab_bar_buttons(cx, move |pane, cx| {
@@ -209,9 +209,9 @@ impl TerminalPanel {
                             )
                             .anchor(AnchorCorner::TopRight)
                             .with_handle(pane.new_item_context_menu_handle.clone())
-                            .menu(move |cx| {
+                            .menu(move |window, cx| {
                                 let focus_handle = focus_handle.clone();
-                                let menu = ContextMenu::build(cx, |menu, _| {
+                                let menu = ContextMenu::build(window, cx, |menu, window, _| {
                                     menu.context(focus_handle.clone())
                                         .action(
                                             "New Terminal",
@@ -238,10 +238,11 @@ impl TerminalPanel {
                             .on_click(cx.listener(|pane, _, cx| {
                                 pane.toggle_zoom(&workspace::ToggleZoom, cx);
                             }))
-                            .tooltip(move |cx| {
+                            .tooltip(move |window, cx| {
                                 Tooltip::for_action(
                                     if zoomed { "Zoom Out" } else { "Zoom In" },
                                     &ToggleZoom,
+                                    window,
                                     cx,
                                 )
                             })
@@ -254,9 +255,9 @@ impl TerminalPanel {
     }
 
     pub async fn load(
-        workspace: WeakView<Workspace>,
+        workspace: WeakModel<Workspace>,
         mut cx: AsyncWindowContext,
-    ) -> Result<View<Self>> {
+    ) -> Result<Model<Self>> {
         let serialized_panel = cx
             .background_executor()
             .spawn(async move { KEY_VALUE_STORE.read_kvp(TERMINAL_PANEL_KEY) })
@@ -269,7 +270,7 @@ impl TerminalPanel {
             .flatten();
 
         let (panel, pane, items) = workspace.update(&mut cx, |workspace, cx| {
-            let panel = cx.new_view(|cx| TerminalPanel::new(workspace, cx));
+            let panel = cx.new_model(|cx| TerminalPanel::new(workspace, cx));
             let items = if let Some((serialized_panel, database_id)) =
                 serialized_panel.as_ref().zip(workspace.database_id())
             {
@@ -356,9 +357,9 @@ impl TerminalPanel {
 
     fn handle_pane_event(
         &mut self,
-        _pane: View<Pane>,
+        _pane: Model<Pane>,
         event: &pane::Event,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         match event {
             pane::Event::ActivateItem { .. } => self.serialize(cx),
@@ -381,7 +382,7 @@ impl TerminalPanel {
     pub fn open_terminal(
         workspace: &mut Workspace,
         action: &workspace::OpenTerminal,
-        cx: &mut ViewContext<Workspace>,
+        cx: &mut ModelContext<Workspace>,
     ) {
         let Some(terminal_panel) = workspace.panel::<Self>(cx) else {
             return;
@@ -398,7 +399,7 @@ impl TerminalPanel {
             .detach_and_log_err(cx);
     }
 
-    fn spawn_task(&mut self, spawn_in_terminal: &SpawnInTerminal, cx: &mut ViewContext<Self>) {
+    fn spawn_task(&mut self, spawn_in_terminal: &SpawnInTerminal, cx: &mut ModelContext<Self>) {
         let mut spawn_task = spawn_in_terminal.clone();
         // Set up shell args unconditionally, as tasks are always spawned inside of a shell.
         let Some((shell, mut user_args)) = (match spawn_in_terminal.shell.clone() {
@@ -533,7 +534,7 @@ impl TerminalPanel {
     pub fn spawn_in_new_terminal(
         &mut self,
         spawn_task: SpawnInTerminal,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Task<Result<Model<Terminal>>> {
         let reveal = spawn_task.reveal;
         self.add_terminal(TerminalKind::Task(spawn_task), reveal, cx)
@@ -543,7 +544,7 @@ impl TerminalPanel {
     fn new_terminal(
         workspace: &mut Workspace,
         _: &workspace::NewTerminal,
-        cx: &mut ViewContext<Workspace>,
+        cx: &mut ModelContext<Workspace>,
     ) {
         let Some(terminal_panel) = workspace.panel::<Self>(cx) else {
             return;
@@ -562,7 +563,7 @@ impl TerminalPanel {
         &self,
         label: &str,
         cx: &mut AppContext,
-    ) -> Vec<(usize, View<TerminalView>)> {
+    ) -> Vec<(usize, Model<TerminalView>)> {
         self.pane
             .read(cx)
             .items()
@@ -589,7 +590,7 @@ impl TerminalPanel {
         &mut self,
         kind: TerminalKind,
         reveal_strategy: RevealStrategy,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Task<Result<Model<Terminal>>> {
         if !self.enabled {
             return Task::ready(Err(anyhow::anyhow!(
@@ -607,7 +608,7 @@ impl TerminalPanel {
                 let terminal = workspace
                     .project()
                     .update(cx, |project, cx| project.create_terminal(kind, window, cx))?;
-                let terminal_view = Box::new(cx.new_view(|cx| {
+                let terminal_view = Box::new(cx.new_model(|cx| {
                     TerminalView::new(
                         terminal.clone(),
                         workspace.weak_handle(),
@@ -639,7 +640,7 @@ impl TerminalPanel {
         })
     }
 
-    fn serialize(&mut self, cx: &mut ViewContext<Self>) {
+    fn serialize(&mut self, cx: &mut ModelContext<Self>) {
         let mut items_to_serialize = HashSet::default();
         let items = self
             .pane
@@ -687,8 +688,8 @@ impl TerminalPanel {
         &self,
         spawn_task: SpawnInTerminal,
         terminal_item_index: usize,
-        terminal_to_replace: View<TerminalView>,
-        cx: &mut ViewContext<'_, Self>,
+        terminal_to_replace: Model<TerminalView>,
+        cx: &mut ModelContext<'_, Self>,
     ) -> Option<()> {
         let project = self
             .workspace
@@ -743,7 +744,7 @@ impl TerminalPanel {
 }
 
 async fn wait_for_terminals_tasks(
-    terminals_for_task: Vec<(usize, View<TerminalView>)>,
+    terminals_for_task: Vec<(usize, Model<TerminalView>)>,
     cx: &mut AsyncWindowContext,
 ) {
     let pending_tasks = terminals_for_task.iter().filter_map(|(_, terminal)| {
@@ -758,7 +759,7 @@ async fn wait_for_terminals_tasks(
     let _: Vec<()> = join_all(pending_tasks).await;
 }
 
-fn add_paths_to_terminal(pane: &mut Pane, paths: &[PathBuf], cx: &mut ViewContext<'_, Pane>) {
+fn add_paths_to_terminal(pane: &mut Pane, paths: &[PathBuf], cx: &mut ModelContext<'_, Pane>) {
     if let Some(terminal_view) = pane
         .active_item()
         .and_then(|item| item.downcast::<TerminalView>())
@@ -777,7 +778,7 @@ fn add_paths_to_terminal(pane: &mut Pane, paths: &[PathBuf], cx: &mut ViewContex
 impl EventEmitter<PanelEvent> for TerminalPanel {}
 
 impl Render for TerminalPanel {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let mut registrar = DivRegistrar::new(
             |panel, cx| {
                 panel
@@ -813,7 +814,7 @@ impl Panel for TerminalPanel {
         true
     }
 
-    fn set_position(&mut self, position: DockPosition, cx: &mut ViewContext<Self>) {
+    fn set_position(&mut self, position: DockPosition, cx: &mut ModelContext<Self>) {
         settings::update_settings_file::<TerminalSettings>(
             self.fs.clone(),
             cx,
@@ -838,7 +839,7 @@ impl Panel for TerminalPanel {
         }
     }
 
-    fn set_size(&mut self, size: Option<Pixels>, cx: &mut ViewContext<Self>) {
+    fn set_size(&mut self, size: Option<Pixels>, cx: &mut ModelContext<Self>) {
         match self.position(cx) {
             DockPosition::Left | DockPosition::Right => self.width = size,
             DockPosition::Bottom => self.height = size,
@@ -851,11 +852,11 @@ impl Panel for TerminalPanel {
         self.pane.read(cx).is_zoomed()
     }
 
-    fn set_zoomed(&mut self, zoomed: bool, cx: &mut ViewContext<Self>) {
+    fn set_zoomed(&mut self, zoomed: bool, cx: &mut ModelContext<Self>) {
         self.pane.update(cx, |pane, cx| pane.set_zoomed(zoomed, cx));
     }
 
-    fn set_active(&mut self, active: bool, cx: &mut ViewContext<Self>) {
+    fn set_active(&mut self, active: bool, cx: &mut ModelContext<Self>) {
         if !active || !self.has_no_terminals(cx) {
             return;
         }
@@ -900,7 +901,7 @@ impl Panel for TerminalPanel {
         Box::new(ToggleFocus)
     }
 
-    fn pane(&self) -> Option<View<Pane>> {
+    fn pane(&self) -> Option<Model<Pane>> {
         Some(self.pane.clone())
     }
 }
@@ -910,14 +911,14 @@ struct InlineAssistTabBarButton {
 }
 
 impl Render for InlineAssistTabBarButton {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let focus_handle = self.focus_handle.clone();
         IconButton::new("terminal_inline_assistant", IconName::ZedAssistant)
             .icon_size(IconSize::Small)
             .on_click(cx.listener(|_, _, cx| {
                 cx.dispatch_action(InlineAssist::default().boxed_clone());
             }))
-            .tooltip(move |cx| {
+            .tooltip(move |window, cx| {
                 Tooltip::for_action_in("Inline Assist", &InlineAssist::default(), &focus_handle, cx)
             })
     }

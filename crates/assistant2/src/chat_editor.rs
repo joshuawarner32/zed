@@ -5,13 +5,13 @@ use theme::ThemeSettings;
 use ui::prelude::*;
 
 pub struct ChatEditor {
-    editor: View<Editor>,
+    editor: Model<Editor>,
 }
 
 impl ChatEditor {
-    pub fn new(cx: &mut ViewContext<Self>) -> Self {
+    pub fn new(cx: &mut ModelContext<Self>) -> Self {
         Self {
-            editor: cx.new_view(|cx| {
+            editor: cx.new_model(|cx| {
                 let mut editor = Editor::auto_height(80, cx);
                 editor.set_placeholder_text("Ask anything…", cx);
 
@@ -22,7 +22,7 @@ impl ChatEditor {
 }
 
 impl Render for ChatEditor {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let font_size = TextSize::Default.rems(cx);
         let line_height = font_size.to_pixels(cx.rem_size()) * 1.3;
 

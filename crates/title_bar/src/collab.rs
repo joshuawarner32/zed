@@ -92,7 +92,7 @@ fn render_color_ribbon(color: Hsla) -> impl Element {
 }
 
 impl TitleBar {
-    pub(crate) fn render_collaborator_list(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    pub(crate) fn render_collaborator_list(&self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let room = ActiveCall::global(cx).read(cx).room().cloned();
         let current_user = self.user_store.read(cx).current_user();
         let client = self.client.clone();
@@ -199,7 +199,7 @@ impl TitleBar {
         room: &Room,
         project_id: Option<u64>,
         current_user: &Arc<User>,
-        cx: &ViewContext<Self>,
+        cx: &ModelContext<Self>,
     ) -> Option<Div> {
         if room.role_for_user(user.id) == Some(proto::ChannelRole::Guest) {
             return None;
@@ -277,7 +277,7 @@ impl TitleBar {
         )
     }
 
-    pub(crate) fn render_call_controls(&self, cx: &mut ViewContext<Self>) -> Vec<AnyElement> {
+    pub(crate) fn render_call_controls(&self, cx: &mut ModelContext<Self>) -> Vec<AnyElement> {
         let Some(room) = ActiveCall::global(cx).read(cx).room().cloned() else {
             return Vec::new();
         };
@@ -309,7 +309,7 @@ impl TitleBar {
                     "toggle_sharing",
                     if is_shared { "Unshare" } else { "Share" },
                 )
-                .tooltip(move |cx| {
+                .tooltip(move |window, cx| {
                     Tooltip::text(
                         if is_shared {
                             "Stop sharing project with call participants"
@@ -361,7 +361,7 @@ impl TitleBar {
                         ui::IconName::Mic
                     },
                 )
-                .tooltip(move |cx| {
+                .tooltip(move |window, cx| {
                     Tooltip::text(
                         if !platform_supported {
                             "Cannot share microphone"
@@ -399,7 +399,7 @@ impl TitleBar {
             .icon_size(IconSize::Small)
             .selected(is_deafened)
             .disabled(!platform_supported)
-            .tooltip(move |cx| {
+            .tooltip(move |window, cx| {
                 if !platform_supported {
                     Tooltip::text("Cannot share microphone", cx)
                 } else if can_use_microphone {
@@ -420,7 +420,7 @@ impl TitleBar {
                     .selected(is_screen_sharing)
                     .disabled(!platform_supported)
                     .selected_style(ButtonStyle::Tinted(TintColor::Accent))
-                    .tooltip(move |cx| {
+                    .tooltip(move |window, cx| {
                         Tooltip::text(
                             if !platform_supported {
                                 "Cannot share screen"

@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{Datelike, Local, NaiveTime, Timelike};
 use editor::scroll::Autoscroll;
 use editor::Editor;
-use gpui::{actions, AppContext, ViewContext, WindowContext};
+use gpui::{actions, AppContext, ModelContext, WindowContext};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use settings::{Settings, SettingsSources};
@@ -58,8 +58,8 @@ impl settings::Settings for JournalSettings {
 pub fn init(_: Arc<AppState>, cx: &mut AppContext) {
     JournalSettings::register(cx);
 
-    cx.observe_new_views(
-        |workspace: &mut Workspace, _cx: &mut ViewContext<Workspace>| {
+    cx.observe_new_models(
+        |workspace: &mut Workspace, _cx: &mut ModelContext<Workspace>| {
             workspace.register_action(|workspace, _: &NewJournalEntry, cx| {
                 new_journal_entry(workspace, cx);
             });

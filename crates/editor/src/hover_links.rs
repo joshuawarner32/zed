@@ -4,7 +4,7 @@ use crate::{
     Anchor, Editor, EditorSnapshot, FindAllReferences, GoToDefinition, GoToTypeDefinition,
     GotoDefinitionKind, InlayId, Navigated, PointForPosition, SelectPhase,
 };
-use gpui::{px, AppContext, AsyncWindowContext, Model, Modifiers, Task, ViewContext};
+use gpui::{px, AppContext, AsyncWindowContext, Model, Modifiers, Task, ModelContext};
 use language::{Bias, ToOffset};
 use linkify::{LinkFinder, LinkKind};
 use lsp::LanguageServerId;
@@ -115,7 +115,7 @@ impl Editor {
         point_for_position: PointForPosition,
         snapshot: &EditorSnapshot,
         modifiers: Modifiers,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         if !modifiers.secondary() || self.has_pending_selection() {
             self.hide_hovered_link(cx);
@@ -145,7 +145,7 @@ impl Editor {
         }
     }
 
-    pub(crate) fn hide_hovered_link(&mut self, cx: &mut ViewContext<Self>) {
+    pub(crate) fn hide_hovered_link(&mut self, cx: &mut ModelContext<Self>) {
         self.hovered_link_state.take();
         self.clear_highlights::<HoveredLinkState>(cx);
     }
@@ -154,7 +154,7 @@ impl Editor {
         &mut self,
         point: PointForPosition,
         modifiers: Modifiers,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) {
         let reveal_task = self.cmd_click_reveal_task(point, modifiers, cx);
         cx.spawn(|editor, mut cx| async move {
@@ -175,7 +175,7 @@ impl Editor {
         .detach();
     }
 
-    pub fn scroll_hover(&mut self, amount: &ScrollAmount, cx: &mut ViewContext<Self>) -> bool {
+    pub fn scroll_hover(&mut self, amount: &ScrollAmount, cx: &mut ModelContext<Self>) -> bool {
         let selection = self.selections.newest_anchor().head();
         let snapshot = self.snapshot(cx);
 
@@ -194,7 +194,7 @@ impl Editor {
         &mut self,
         point: PointForPosition,
         modifiers: Modifiers,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) -> Task<anyhow::Result<Navigated>> {
         if let Some(hovered_link_state) = self.hovered_link_state.take() {
             self.hide_hovered_link(cx);
@@ -259,7 +259,7 @@ pub fn update_inlay_link_and_hover_points(
     editor: &mut Editor,
     secondary_held: bool,
     shift_held: bool,
-    cx: &mut ViewContext<'_, Editor>,
+    cx: &mut ModelContext<'_, Editor>,
 ) {
     let hovered_offset = if point_for_position.column_overshoot_after_line_end == 0 {
         Some(snapshot.display_point_to_inlay_offset(point_for_position.exact_unclipped, Bias::Left))
@@ -433,7 +433,7 @@ pub fn show_link_definition(
     editor: &mut Editor,
     trigger_point: TriggerPoint,
     snapshot: &EditorSnapshot,
-    cx: &mut ViewContext<Editor>,
+    cx: &mut ModelContext<Editor>,
 ) {
     let preferred_kind = match trigger_point {
         TriggerPoint::Text(_) if !shift_held => GotoDefinitionKind::Symbol,

@@ -33,7 +33,11 @@ impl AssetSource for Assets {
 struct SvgExample;
 
 impl Render for SvgExample {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(
+        &mut self,
+        _window: &mut gpui::Window,
+        _cx: &mut ModelContext<Self>,
+    ) -> impl IntoElement {
         div()
             .flex()
             .flex_row()
@@ -75,7 +79,7 @@ fn main() {
                     window_bounds: Some(WindowBounds::Windowed(bounds)),
                     ..Default::default()
                 },
-                |cx| cx.new_view(|_cx| SvgExample),
+                |_, _| SvgExample,
             )
             .unwrap();
         });

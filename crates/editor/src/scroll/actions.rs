@@ -4,10 +4,10 @@ use crate::{
     ScrollAnchor, ScrollCursorBottom, ScrollCursorCenter, ScrollCursorCenterTopBottom,
     ScrollCursorTop, SCROLL_CENTER_TOP_BOTTOM_DEBOUNCE_TIMEOUT,
 };
-use gpui::{Point, ViewContext};
+use gpui::{Point, ModelContext};
 
 impl Editor {
-    pub fn next_screen(&mut self, _: &NextScreen, cx: &mut ViewContext<Editor>) {
+    pub fn next_screen(&mut self, _: &NextScreen, cx: &mut ModelContext<Editor>) {
         if self.take_rename(true, cx).is_some() {
             return;
         }
@@ -27,7 +27,7 @@ impl Editor {
         &mut self,
         scroll_position: Point<f32>,
         axis: Option<Axis>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.scroll_manager.update_ongoing_scroll(axis);
         self.set_scroll_position(scroll_position, cx);
@@ -36,7 +36,7 @@ impl Editor {
     pub fn scroll_cursor_center_top_bottom(
         &mut self,
         _: &ScrollCursorCenterTopBottom,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         let snapshot = self.snapshot(cx).display_snapshot;
         let visible_rows = if let Some(visible_rows) = self.visible_line_count() {
@@ -87,7 +87,7 @@ impl Editor {
             });
     }
 
-    pub fn scroll_cursor_top(&mut self, _: &ScrollCursorTop, cx: &mut ViewContext<Editor>) {
+    pub fn scroll_cursor_top(&mut self, _: &ScrollCursorTop, cx: &mut ModelContext<Editor>) {
         let snapshot = self.snapshot(cx).display_snapshot;
         let scroll_margin_rows = self.vertical_scroll_margin() as u32;
 
@@ -106,7 +106,7 @@ impl Editor {
         )
     }
 
-    pub fn scroll_cursor_center(&mut self, _: &ScrollCursorCenter, cx: &mut ViewContext<Editor>) {
+    pub fn scroll_cursor_center(&mut self, _: &ScrollCursorCenter, cx: &mut ModelContext<Editor>) {
         let snapshot = self.snapshot(cx).display_snapshot;
         let visible_rows = if let Some(visible_rows) = self.visible_line_count() {
             visible_rows as u32
@@ -129,7 +129,7 @@ impl Editor {
         )
     }
 
-    pub fn scroll_cursor_bottom(&mut self, _: &ScrollCursorBottom, cx: &mut ViewContext<Editor>) {
+    pub fn scroll_cursor_bottom(&mut self, _: &ScrollCursorBottom, cx: &mut ModelContext<Editor>) {
         let snapshot = self.snapshot(cx).display_snapshot;
         let scroll_margin_rows = self.vertical_scroll_margin() as u32;
         let visible_rows = if let Some(visible_rows) = self.visible_line_count() {

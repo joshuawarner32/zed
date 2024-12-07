@@ -1,7 +1,7 @@
 use std::{iter::Peekable, str::Chars, time::Duration};
 
 use editor::Editor;
-use gpui::{actions, impl_actions, ViewContext};
+use gpui::{actions, impl_actions, ModelContext};
 use language::Point;
 use search::{buffer_search, BufferSearchBar, SearchOptions};
 use serde_derive::Deserialize;
@@ -71,7 +71,7 @@ impl_actions!(
     [FindCommand, ReplaceCommand, Search, MoveToPrev, MoveToNext]
 );
 
-pub(crate) fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
+pub(crate) fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
     Vim::action(editor, cx, Vim::move_to_next);
     Vim::action(editor, cx, Vim::move_to_prev);
     Vim::action(editor, cx, Vim::move_to_next_match);
@@ -83,7 +83,7 @@ pub(crate) fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
 }
 
 impl Vim {
-    fn move_to_next(&mut self, action: &MoveToNext, cx: &mut ViewContext<Self>) {
+    fn move_to_next(&mut self, action: &MoveToNext, cx: &mut ModelContext<Self>) {
         self.move_to_internal(
             Direction::Next,
             action.case_sensitive,
@@ -93,7 +93,7 @@ impl Vim {
         )
     }
 
-    fn move_to_prev(&mut self, action: &MoveToPrev, cx: &mut ViewContext<Self>) {
+    fn move_to_prev(&mut self, action: &MoveToPrev, cx: &mut ModelContext<Self>) {
         self.move_to_internal(
             Direction::Prev,
             action.case_sensitive,
@@ -103,15 +103,15 @@ impl Vim {
         )
     }
 
-    fn move_to_next_match(&mut self, _: &MoveToNextMatch, cx: &mut ViewContext<Self>) {
+    fn move_to_next_match(&mut self, _: &MoveToNextMatch, cx: &mut ModelContext<Self>) {
         self.move_to_match_internal(self.search.direction, cx)
     }
 
-    fn move_to_prev_match(&mut self, _: &MoveToPrevMatch, cx: &mut ViewContext<Self>) {
+    fn move_to_prev_match(&mut self, _: &MoveToPrevMatch, cx: &mut ModelContext<Self>) {
         self.move_to_match_internal(self.search.direction.opposite(), cx)
     }
 
-    fn search(&mut self, action: &Search, cx: &mut ViewContext<Self>) {
+    fn search(&mut self, action: &Search, cx: &mut ModelContext<Self>) {
         let Some(pane) = self.pane(cx) else {
             return;
         };
@@ -159,12 +159,12 @@ impl Vim {
     }
 
     // hook into the existing to clear out any vim search state on cmd+f or edit -> find.
-    fn search_deploy(&mut self, _: &buffer_search::Deploy, cx: &mut ViewContext<Self>) {
+    fn search_deploy(&mut self, _: &buffer_search::Deploy, cx: &mut ModelContext<Self>) {
         self.search = Default::default();
         cx.propagate();
     }
 
-    pub fn search_submit(&mut self, cx: &mut ViewContext<Self>) {
+    pub fn search_submit(&mut self, cx: &mut ModelContext<Self>) {
         self.store_visual_marks(cx);
         let Some(pane) = self.pane(cx) else { return };
         let result = pane.update(cx, |pane, cx| {
@@ -224,7 +224,7 @@ impl Vim {
         );
     }
 
-    pub fn move_to_match_internal(&mut self, direction: Direction, cx: &mut ViewContext<Self>) {
+    pub fn move_to_match_internal(&mut self, direction: Direction, cx: &mut ModelContext<Self>) {
         let Some(pane) = self.pane(cx) else { return };
         let count = self.take_count(cx).unwrap_or(1);
         let prior_selections = self.editor_selections(cx);
@@ -261,7 +261,7 @@ impl Vim {
         case_sensitive: bool,
         whole_word: bool,
         regex: bool,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         let Some(pane) = self.pane(cx) else { return };
         let count = self.take_count(cx).unwrap_or(1);
@@ -328,7 +328,7 @@ impl Vim {
         }
     }
 
-    fn find_command(&mut self, action: &FindCommand, cx: &mut ViewContext<Self>) {
+    fn find_command(&mut self, action: &FindCommand, cx: &mut ModelContext<Self>) {
         let Some(pane) = self.pane(cx) else { return };
         pane.update(cx, |pane, cx| {
             if let Some(search_bar) = pane.toolbar().read(cx).item_of_type::<BufferSearchBar>() {
@@ -370,7 +370,7 @@ impl Vim {
         })
     }
 
-    fn replace_command(&mut self, action: &ReplaceCommand, cx: &mut ViewContext<Self>) {
+    fn replace_command(&mut self, action: &ReplaceCommand, cx: &mut ModelContext<Self>) {
         let replacement = action.replacement.clone();
         let Some(((pane, workspace), editor)) =
             self.pane(cx).zip(self.workspace(cx)).zip(self.editor())

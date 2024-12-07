@@ -35,104 +35,119 @@ struct TextInput {
 }
 
 impl TextInput {
-    fn left(&mut self, _: &Left, cx: &mut ViewContext<Self>) {
+    fn left(&mut self, _: &Left, window: &mut Window, cx: &mut ModelContext<Self>) {
         if self.selected_range.is_empty() {
-            self.move_to(self.previous_boundary(self.cursor_offset()), cx);
+            self.move_to(self.previous_boundary(self.cursor_offset()), window, cx);
         } else {
-            self.move_to(self.selected_range.start, cx)
+            self.move_to(self.selected_range.start, window, cx)
         }
     }
 
-    fn right(&mut self, _: &Right, cx: &mut ViewContext<Self>) {
+    fn right(&mut self, _: &Right, window: &mut Window, cx: &mut ModelContext<Self>) {
         if self.selected_range.is_empty() {
-            self.move_to(self.next_boundary(self.selected_range.end), cx);
+            self.move_to(self.next_boundary(self.selected_range.end), window, cx);
         } else {
-            self.move_to(self.selected_range.end, cx)
+            self.move_to(self.selected_range.end, window, cx)
         }
     }
 
-    fn select_left(&mut self, _: &SelectLeft, cx: &mut ViewContext<Self>) {
-        self.select_to(self.previous_boundary(self.cursor_offset()), cx);
+    fn select_left(&mut self, _: &SelectLeft, window: &mut Window, cx: &mut ModelContext<Self>) {
+        self.select_to(self.previous_boundary(self.cursor_offset()), window, cx);
     }
 
-    fn select_right(&mut self, _: &SelectRight, cx: &mut ViewContext<Self>) {
-        self.select_to(self.next_boundary(self.cursor_offset()), cx);
+    fn select_right(&mut self, _: &SelectRight, window: &mut Window, cx: &mut ModelContext<Self>) {
+        self.select_to(self.next_boundary(self.cursor_offset()), window, cx);
     }
 
-    fn select_all(&mut self, _: &SelectAll, cx: &mut ViewContext<Self>) {
-        self.move_to(0, cx);
-        self.select_to(self.content.len(), cx)
+    fn select_all(&mut self, _: &SelectAll, window: &mut Window, cx: &mut ModelContext<Self>) {
+        self.move_to(0, window, cx);
+        self.select_to(self.content.len(), window, cx)
     }
 
-    fn home(&mut self, _: &Home, cx: &mut ViewContext<Self>) {
-        self.move_to(0, cx);
+    fn home(&mut self, _: &Home, window: &mut Window, cx: &mut ModelContext<Self>) {
+        self.move_to(0, window, cx);
     }
 
-    fn end(&mut self, _: &End, cx: &mut ViewContext<Self>) {
-        self.move_to(self.content.len(), cx);
+    fn end(&mut self, _: &End, window: &mut Window, cx: &mut ModelContext<Self>) {
+        self.move_to(self.content.len(), window, cx);
     }
 
-    fn backspace(&mut self, _: &Backspace, cx: &mut ViewContext<Self>) {
+    fn backspace(&mut self, _: &Backspace, window: &mut Window, cx: &mut ModelContext<Self>) {
         if self.selected_range.is_empty() {
-            self.select_to(self.previous_boundary(self.cursor_offset()), cx)
+            self.select_to(self.previous_boundary(self.cursor_offset()), window, cx)
         }
-        self.replace_text_in_range(None, "", cx)
+        self.replace_text_in_range(None, "", window, cx)
     }
 
-    fn delete(&mut self, _: &Delete, cx: &mut ViewContext<Self>) {
+    fn delete(&mut self, _: &Delete, window: &mut Window, cx: &mut ModelContext<Self>) {
         if self.selected_range.is_empty() {
-            self.select_to(self.next_boundary(self.cursor_offset()), cx)
+            self.select_to(self.next_boundary(self.cursor_offset()), window, cx)
         }
-        self.replace_text_in_range(None, "", cx)
+        self.replace_text_in_range(None, "", window, cx)
     }
 
-    fn on_mouse_down(&mut self, event: &MouseDownEvent, cx: &mut ViewContext<Self>) {
+    fn on_mouse_down(
+        &mut self,
+        event: &MouseDownEvent,
+        window: &mut Window,
+        cx: &mut ModelContext<Self>,
+    ) {
         self.is_selecting = true;
 
         if event.modifiers.shift {
-            self.select_to(self.index_for_mouse_position(event.position), cx);
+            self.select_to(self.index_for_mouse_position(event.position), window, cx);
         } else {
-            self.move_to(self.index_for_mouse_position(event.position), cx)
+            self.move_to(self.index_for_mouse_position(event.position), window, cx)
         }
     }
 
-    fn on_mouse_up(&mut self, _: &MouseUpEvent, _: &mut ViewContext<Self>) {
+    fn on_mouse_up(&mut self, _: &MouseUpEvent, _: &mut Window, _: &mut ModelContext<Self>) {
         self.is_selecting = false;
     }
 
-    fn on_mouse_move(&mut self, event: &MouseMoveEvent, cx: &mut ViewContext<Self>) {
+    fn on_mouse_move(
+        &mut self,
+        event: &MouseMoveEvent,
+        window: &mut Window,
+        cx: &mut ModelContext<Self>,
+    ) {
         if self.is_selecting {
-            self.select_to(self.index_for_mouse_position(event.position), cx);
+            self.select_to(self.index_for_mouse_position(event.position), window, cx);
         }
     }
 
-    fn show_character_palette(&mut self, _: &ShowCharacterPalette, cx: &mut ViewContext<Self>) {
-        cx.show_character_palette();
+    fn show_character_palette(
+        &mut self,
+        _: &ShowCharacterPalette,
+        window: &mut Window,
+        _cx: &mut ModelContext<Self>,
+    ) {
+        window.show_character_palette();
     }
 
-    fn paste(&mut self, _: &Paste, cx: &mut ViewContext<Self>) {
+    fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut ModelContext<Self>) {
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
-            self.replace_text_in_range(None, &text.replace("\n", " "), cx);
+            self.replace_text_in_range(None, &text.replace("\n", " "), window, cx);
         }
     }
 
-    fn copy(&mut self, _: &Copy, cx: &mut ViewContext<Self>) {
+    fn copy(&mut self, _: &Copy, _window: &mut Window, cx: &mut ModelContext<Self>) {
         if !self.selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
                 (&self.content[self.selected_range.clone()]).to_string(),
             ));
         }
     }
-    fn cut(&mut self, _: &Copy, cx: &mut ViewContext<Self>) {
+    fn cut(&mut self, _: &Copy, window: &mut Window, cx: &mut ModelContext<Self>) {
         if !self.selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
                 (&self.content[self.selected_range.clone()]).to_string(),
             ));
-            self.replace_text_in_range(None, "", cx)
+            self.replace_text_in_range(None, "", window, cx)
         }
     }
 
-    fn move_to(&mut self, offset: usize, cx: &mut ViewContext<Self>) {
+    fn move_to(&mut self, offset: usize, _window: &mut Window, cx: &mut ModelContext<Self>) {
         self.selected_range = offset..offset;
         cx.notify()
     }
@@ -163,7 +178,7 @@ impl TextInput {
         line.closest_index_for_x(position.x - bounds.left())
     }
 
-    fn select_to(&mut self, offset: usize, cx: &mut ViewContext<Self>) {
+    fn select_to(&mut self, offset: usize, _window: &mut Window, cx: &mut ModelContext<Self>) {
         if self.selection_reversed {
             self.selected_range.start = offset
         } else {
@@ -240,12 +255,13 @@ impl TextInput {
     }
 }
 
-impl ViewInputHandler for TextInput {
+impl InputHandlerModel for TextInput {
     fn text_for_range(
         &mut self,
         range_utf16: Range<usize>,
         actual_range: &mut Option<Range<usize>>,
-        _cx: &mut ViewContext<Self>,
+        _window: &mut Window,
+        _cx: &mut ModelContext<Self>,
     ) -> Option<String> {
         let range = self.range_from_utf16(&range_utf16);
         actual_range.replace(self.range_to_utf16(&range));
@@ -255,7 +271,8 @@ impl ViewInputHandler for TextInput {
     fn selected_text_range(
         &mut self,
         _ignore_disabled_input: bool,
-        _cx: &mut ViewContext<Self>,
+        _window: &mut Window,
+        _cx: &mut ModelContext<Self>,
     ) -> Option<UTF16Selection> {
         Some(UTF16Selection {
             range: self.range_to_utf16(&self.selected_range),
@@ -263,13 +280,17 @@ impl ViewInputHandler for TextInput {
         })
     }
 
-    fn marked_text_range(&self, _cx: &mut ViewContext<Self>) -> Option<Range<usize>> {
+    fn marked_text_range(
+        &mut self,
+        _window: &mut Window,
+        _cx: &mut ModelContext<Self>,
+    ) -> Option<Range<usize>> {
         self.marked_range
             .as_ref()
             .map(|range| self.range_to_utf16(range))
     }
 
-    fn unmark_text(&mut self, _cx: &mut ViewContext<Self>) {
+    fn unmark_text(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) {
         self.marked_range = None;
     }
 
@@ -277,7 +298,8 @@ impl ViewInputHandler for TextInput {
         &mut self,
         range_utf16: Option<Range<usize>>,
         new_text: &str,
-        cx: &mut ViewContext<Self>,
+        _window: &mut Window,
+        cx: &mut ModelContext<Self>,
     ) {
         let range = range_utf16
             .as_ref()
@@ -298,7 +320,8 @@ impl ViewInputHandler for TextInput {
         range_utf16: Option<Range<usize>>,
         new_text: &str,
         new_selected_range_utf16: Option<Range<usize>>,
-        cx: &mut ViewContext<Self>,
+        _window: &mut Window,
+        cx: &mut ModelContext<Self>,
     ) {
         let range = range_utf16
             .as_ref()
@@ -319,29 +342,31 @@ impl ViewInputHandler for TextInput {
         cx.notify();
     }
 
+    /// See [`InputHandler::bounds_for_range`] for details
     fn bounds_for_range(
         &mut self,
         range_utf16: Range<usize>,
-        bounds: Bounds<Pixels>,
-        _cx: &mut ViewContext<Self>,
+        element_bounds: Bounds<Pixels>,
+        _window: &mut Window,
+        _cx: &mut ModelContext<Self>,
     ) -> Option<Bounds<Pixels>> {
         let last_layout = self.last_layout.as_ref()?;
         let range = self.range_from_utf16(&range_utf16);
         Some(Bounds::from_corners(
             point(
-                bounds.left() + last_layout.x_for_index(range.start),
-                bounds.top(),
+                element_bounds.left() + last_layout.x_for_index(range.start),
+                element_bounds.top(),
             ),
             point(
-                bounds.left() + last_layout.x_for_index(range.end),
-                bounds.bottom(),
+                element_bounds.left() + last_layout.x_for_index(range.end),
+                element_bounds.bottom(),
             ),
         ))
     }
 }
 
 struct TextElement {
-    input: View<TextInput>,
+    input: Model<TextInput>,
 }
 
 struct PrepaintState {
@@ -370,12 +395,13 @@ impl Element for TextElement {
     fn request_layout(
         &mut self,
         _id: Option<&GlobalElementId>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> (LayoutId, Self::RequestLayoutState) {
         let mut style = Style::default();
         style.size.width = relative(1.).into();
-        style.size.height = cx.line_height().into();
-        (cx.request_layout(style, []), ())
+        style.size.height = window.line_height().into();
+        (window.request_layout(style, [], cx), ())
     }
 
     fn prepaint(
@@ -383,13 +409,14 @@ impl Element for TextElement {
         _id: Option<&GlobalElementId>,
         bounds: Bounds<Pixels>,
         _request_layout: &mut Self::RequestLayoutState,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Self::PrepaintState {
         let input = self.input.read(cx);
         let content = input.content.clone();
         let selected_range = input.selected_range.clone();
         let cursor = input.cursor_offset();
-        let style = cx.text_style();
+        let style = window.text_style();
 
         let (display_text, text_color) = if content.is_empty() {
             (input.placeholder.clone(), hsla(0., 0., 0., 0.2))
@@ -432,8 +459,8 @@ impl Element for TextElement {
             vec![run]
         };
 
-        let font_size = style.font_size.to_pixels(cx.rem_size());
-        let line = cx
+        let font_size = style.font_size.to_pixels(window.rem_size());
+        let line = window
             .text_system()
             .shape_line(display_text, font_size, &runs)
             .unwrap();
@@ -481,22 +508,25 @@ impl Element for TextElement {
         bounds: Bounds<Pixels>,
         _request_layout: &mut Self::RequestLayoutState,
         prepaint: &mut Self::PrepaintState,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) {
         let focus_handle = self.input.read(cx).focus_handle.clone();
-        cx.handle_input(
+        window.handle_input(
             &focus_handle,
             ElementInputHandler::new(bounds, self.input.clone()),
+            cx,
         );
         if let Some(selection) = prepaint.selection.take() {
-            cx.paint_quad(selection)
+            window.paint_quad(selection)
         }
         let line = prepaint.line.take().unwrap();
-        line.paint(bounds.origin, cx.line_height(), cx).unwrap();
+        line.paint(bounds.origin, window.line_height(), window, cx)
+            .unwrap();
 
-        if focus_handle.is_focused(cx) {
+        if focus_handle.is_focused(window) {
             if let Some(cursor) = prepaint.cursor.take() {
-                cx.paint_quad(cursor);
+                window.paint_quad(cursor);
             }
         }
 
@@ -508,11 +538,11 @@ impl Element for TextElement {
 }
 
 impl Render for TextInput {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         div()
             .flex()
             .key_context("TextInput")
-            .track_focus(&self.focus_handle(cx))
+            .track_focus(&self.focus_handle)
             .cursor(CursorStyle::IBeam)
             .on_action(cx.listener(Self::backspace))
             .on_action(cx.listener(Self::delete))
@@ -541,7 +571,7 @@ impl Render for TextInput {
                     .p(px(4.))
                     .bg(white())
                     .child(TextElement {
-                        input: cx.view().clone(),
+                        input: cx.handle().clone(),
                     }),
             )
     }
@@ -554,7 +584,7 @@ impl FocusableView for TextInput {
 }
 
 struct InputExample {
-    text_input: View<TextInput>,
+    text_input: Model<TextInput>,
     recent_keystrokes: Vec<Keystroke>,
     focus_handle: FocusHandle,
 }
@@ -566,7 +596,12 @@ impl FocusableView for InputExample {
 }
 
 impl InputExample {
-    fn on_reset_click(&mut self, _: &MouseUpEvent, cx: &mut ViewContext<Self>) {
+    fn on_reset_click(
+        &mut self,
+        _: &MouseUpEvent,
+        _window: &mut Window,
+        cx: &mut ModelContext<Self>,
+    ) {
         self.recent_keystrokes.clear();
         self.text_input
             .update(cx, |text_input, _cx| text_input.reset());
@@ -575,10 +610,10 @@ impl InputExample {
 }
 
 impl Render for InputExample {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         div()
             .bg(rgb(0xaaaaaa))
-            .track_focus(&self.focus_handle(cx))
+            .track_focus(&self.focus_handle)
             .flex()
             .flex_col()
             .size_full()
@@ -646,9 +681,9 @@ fn main() {
                     window_bounds: Some(WindowBounds::Windowed(bounds)),
                     ..Default::default()
                 },
-                |cx| {
-                    let text_input = cx.new_view(|cx| TextInput {
-                        focus_handle: cx.focus_handle(),
+                |window, cx| {
+                    let text_input = cx.new_model(|_cx| TextInput {
+                        focus_handle: window.focus_handle(),
                         content: "".into(),
                         placeholder: "Type here...".into(),
                         selected_range: 0..0,
@@ -658,35 +693,37 @@ fn main() {
                         last_bounds: None,
                         is_selecting: false,
                     });
-                    cx.new_view(|cx| InputExample {
+                    InputExample {
                         text_input,
                         recent_keystrokes: vec![],
-                        focus_handle: cx.focus_handle(),
-                    })
+                        focus_handle: window.focus_handle(),
+                    }
                 },
             )
             .unwrap();
-        cx.observe_keystrokes(move |ev, cx| {
-            window
-                .update(cx, |view, cx| {
-                    view.recent_keystrokes.push(ev.keystroke.clone());
-                    cx.notify();
-                })
-                .unwrap();
+        let state = window.state(cx).unwrap();
+
+        cx.observe_keystrokes(move |ev, _window, cx| {
+            state.update(cx, |state, cx| {
+                state.recent_keystrokes.push(ev.keystroke.clone());
+                cx.notify()
+            });
         })
         .detach();
+
         cx.on_keyboard_layout_change({
             move |cx| {
-                window.update(cx, |_, cx| cx.notify()).ok();
+                window.update(cx, |_, _window, cx| cx.notify()).ok();
             }
         })
         .detach();
 
         window
-            .update(cx, |view, cx| {
-                cx.focus_view(&view.text_input);
-                cx.activate(true);
+            .update(cx, |model, window, cx| {
+                window.focus(&model.text_input.read(cx).focus_handle(cx));
             })
             .unwrap();
+
+        cx.activate(true);
     });
 }

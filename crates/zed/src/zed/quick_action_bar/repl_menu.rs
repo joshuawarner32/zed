@@ -32,7 +32,7 @@ struct ReplMenuState {
 }
 
 impl QuickActionBar {
-    pub fn render_repl_menu(&self, cx: &mut ViewContext<Self>) -> Option<AnyElement> {
+    pub fn render_repl_menu(&self, cx: &mut ModelContext<Self>) -> Option<AnyElement> {
         if !JupyterSettings::enabled(cx) {
             return None;
         }
@@ -82,10 +82,10 @@ impl QuickActionBar {
 
         let editor = editor.downgrade();
         let dropdown_menu = PopoverMenu::new(element_id("menu"))
-            .menu(move |cx| {
+            .menu(move |window, cx| {
                 let editor = editor.clone();
                 let session = session.clone();
-                ContextMenu::build(cx, move |menu, cx| {
+                ContextMenu::build(window, cx, move |menu, window, cx| {
                     let menu_state = session_state(session, cx);
                     let status = menu_state.status;
                     let editor = editor.clone();
@@ -256,7 +256,7 @@ impl QuickActionBar {
     pub fn render_repl_launch_menu(
         &self,
         kernel_specification: KernelSpecification,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Option<AnyElement> {
         let tooltip: SharedString =
             SharedString::from(format!("Start REPL for {}", kernel_specification.name()));
@@ -276,7 +276,7 @@ impl QuickActionBar {
         )
     }
 
-    pub fn render_kernel_selector(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    pub fn render_kernel_selector(&self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let editor = if let Some(editor) = self.active_editor() {
             editor
         } else {
@@ -348,7 +348,7 @@ impl QuickActionBar {
     pub fn render_repl_setup(
         &self,
         language: &str,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Option<AnyElement> {
         let tooltip: SharedString = SharedString::from(format!("Setup Zed REPL for {}", language));
         Some(
@@ -369,7 +369,7 @@ impl QuickActionBar {
     }
 }
 
-fn session_state(session: View<Session>, cx: &WindowContext) -> ReplMenuState {
+fn session_state(session: Model<Session>, cx: &WindowContext) -> ReplMenuState {
     let session = session.read(cx);
 
     let kernel_name = session.kernel_specification.name();

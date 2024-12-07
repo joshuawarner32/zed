@@ -8,13 +8,13 @@ use story::*;
 pub struct TextStory;
 
 impl TextStory {
-    pub fn view(cx: &mut WindowContext) -> View<Self> {
-        cx.new_view(|_cx| Self)
+    pub fn view(cx: &mut WindowContext) -> Model<Self> {
+        cx.new_model(|_cx| Self)
     }
 }
 
 impl Render for TextStory {
-    fn render(&mut self, cx: &mut gpui::ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut gpui::ModelContext<Self>) -> impl IntoElement {
         Story::container()
             .child(Story::title("Text"))
             .children(vec![

@@ -46,7 +46,7 @@ struct ThemePreview {
 }
 
 impl ThemePreview {
-    pub fn new(cx: &mut ViewContext<Self>) -> Self {
+    pub fn new(cx: &mut ModelContext<Self>) -> Self {
         Self {
             current_page: ThemePreviewPage::Overview,
             focus_handle: cx.focus_handle(),
@@ -56,7 +56,7 @@ impl ThemePreview {
     pub fn view(
         &self,
         page: ThemePreviewPage,
-        cx: &mut ViewContext<ThemePreview>,
+        cx: &mut ModelContext<ThemePreview>,
     ) -> impl IntoElement {
         match page {
             ThemePreviewPage::Overview => self.render_overview_page(cx).into_any_element(),
@@ -92,12 +92,12 @@ impl Item for ThemePreview {
     fn clone_on_split(
         &self,
         _workspace_id: Option<crate::WorkspaceId>,
-        cx: &mut ViewContext<Self>,
-    ) -> Option<gpui::View<Self>>
+        cx: &mut ModelContext<Self>,
+    ) -> Option<gpui::Model<Self>>
     where
         Self: Sized,
     {
-        Some(cx.new_view(Self::new))
+        Some(cx.new_model(Self::new))
     }
 }
 
@@ -108,7 +108,7 @@ impl ThemePreview {
         cx.theme().colors().editor_background
     }
 
-    fn render_avatars(&self, cx: &ViewContext<Self>) -> impl IntoElement {
+    fn render_avatars(&self, cx: &ModelContext<Self>) -> impl IntoElement {
         v_flex()
             .gap_1()
             .child(
@@ -172,7 +172,7 @@ impl ThemePreview {
             )
     }
 
-    fn render_buttons(&self, layer: ElevationIndex, cx: &ViewContext<Self>) -> impl IntoElement {
+    fn render_buttons(&self, layer: ElevationIndex, cx: &ModelContext<Self>) -> impl IntoElement {
         v_flex()
             .gap_1()
             .child(
@@ -249,7 +249,7 @@ impl ThemePreview {
             )
     }
 
-    fn render_text(&self, layer: ElevationIndex, cx: &ViewContext<Self>) -> impl IntoElement {
+    fn render_text(&self, layer: ElevationIndex, cx: &ModelContext<Self>) -> impl IntoElement {
         let bg = layer.bg(cx);
 
         let label_with_contrast = |label: &str, fg: Hsla| {
@@ -410,7 +410,7 @@ impl ThemePreview {
             )
     }
 
-    fn render_colors(&self, layer: ElevationIndex, cx: &ViewContext<Self>) -> impl IntoElement {
+    fn render_colors(&self, layer: ElevationIndex, cx: &ModelContext<Self>) -> impl IntoElement {
         let bg = layer.bg(cx);
         let all_colors = all_theme_colors(cx);
 
@@ -440,7 +440,7 @@ impl ThemePreview {
                                 )
                                 .size(ButtonSize::None)
                                 .style(ButtonStyle::Transparent)
-                                .tooltip(move |cx| {
+                                .tooltip(move |window, cx| {
                                     let name = name.clone();
                                     Tooltip::with_meta(name, None, format!("{:?}", color), cx)
                                 }),
@@ -452,7 +452,7 @@ impl ThemePreview {
     fn render_theme_layer(
         &self,
         layer: ElevationIndex,
-        cx: &ViewContext<Self>,
+        cx: &ModelContext<Self>,
     ) -> impl IntoElement {
         v_flex()
             .p_4()
@@ -464,7 +464,7 @@ impl ThemePreview {
             .child(self.render_colors(layer, cx))
     }
 
-    fn render_overview_page(&self, cx: &ViewContext<Self>) -> impl IntoElement {
+    fn render_overview_page(&self, cx: &ModelContext<Self>) -> impl IntoElement {
         v_flex()
             .id("theme-preview-overview")
             .overflow_scroll()
@@ -480,7 +480,7 @@ impl ThemePreview {
             .child(self.render_theme_layer(ElevationIndex::ElevatedSurface, cx))
     }
 
-    fn render_typography_page(&self, cx: &ViewContext<Self>) -> impl IntoElement {
+    fn render_typography_page(&self, cx: &ModelContext<Self>) -> impl IntoElement {
         v_flex()
             .id("theme-preview-typography")
             .overflow_scroll()
@@ -502,7 +502,7 @@ impl ThemePreview {
             )
     }
 
-    fn render_components_page(&self, cx: &ViewContext<Self>) -> impl IntoElement {
+    fn render_components_page(&self, cx: &ModelContext<Self>) -> impl IntoElement {
         let layer = ElevationIndex::Surface;
 
         v_flex()
@@ -524,7 +524,7 @@ impl ThemePreview {
             .child(self.render_buttons(layer, cx))
     }
 
-    fn render_page_nav(&self, cx: &ViewContext<Self>) -> impl IntoElement {
+    fn render_page_nav(&self, cx: &ModelContext<Self>) -> impl IntoElement {
         h_flex()
             .id("theme-preview-nav")
             .items_center()
@@ -544,7 +544,7 @@ impl ThemePreview {
 }
 
 impl Render for ThemePreview {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl ui::IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl ui::IntoElement {
         v_flex()
             .id("theme-preview")
             .key_context("ThemePreview")

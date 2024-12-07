@@ -26,7 +26,7 @@ use futures::{
 use gpui::{
     anchored, deferred, point, AnyElement, AppContext, ClickEvent, CursorStyle, EventEmitter,
     FocusHandle, FocusableView, FontWeight, Global, HighlightStyle, Model, ModelContext,
-    Subscription, Task, TextStyle, UpdateGlobal, View, ViewContext, WeakView, WindowContext,
+    ModelContext, Subscription, Task, TextStyle, UpdateGlobal, View, WeakView, WindowContext,
 };
 use language::{Buffer, IndentKind, Point, Selection, TransactionId};
 use language_model::{
@@ -68,7 +68,7 @@ pub fn init(
     cx: &mut AppContext,
 ) {
     cx.set_global(InlineAssistant::new(fs, prompt_builder, telemetry));
-    cx.observe_new_views(|_, cx| {
+    cx.observe_new_models(|_, cx| {
         let workspace = cx.view().clone();
         InlineAssistant::update_global(cx, |inline_assistant, cx| {
             inline_assistant.register_workspace(&workspace, cx)
@@ -83,7 +83,7 @@ pub struct InlineAssistant {
     next_assist_id: InlineAssistId,
     next_assist_group_id: InlineAssistGroupId,
     assists: HashMap<InlineAssistId, InlineAssist>,
-    assists_by_editor: HashMap<WeakView<Editor>, EditorInlineAssists>,
+    assists_by_editor: HashMap<WeakModel<Editor>, EditorInlineAssists>,
     assist_groups: HashMap<InlineAssistGroupId, InlineAssistGroup>,
     confirmed_assists: HashMap<InlineAssistId, Model<CodegenAlternative>>,
     prompt_history: VecDeque<String>,
@@ -114,7 +114,7 @@ impl InlineAssistant {
         }
     }
 
-    pub fn register_workspace(&mut self, workspace: &View<Workspace>, cx: &mut WindowContext) {
+    pub fn register_workspace(&mut self, workspace: &Model<Workspace>, cx: &mut AppContext) {
         cx.subscribe(workspace, |workspace, event, cx| {
             Self::update_global(cx, |this, cx| {
                 this.handle_workspace_event(workspace, event, cx)
@@ -140,7 +140,7 @@ impl InlineAssistant {
 
     fn handle_workspace_event(
         &mut self,
-        workspace: View<Workspace>,
+        workspace: Model<Workspace>,
         event: &workspace::Event,
         cx: &mut WindowContext,
     ) {
@@ -167,7 +167,7 @@ impl InlineAssistant {
 
     fn register_workspace_item(
         &mut self,
-        workspace: &View<Workspace>,
+        workspace: &Model<Workspace>,
         item: &dyn ItemHandle,
         cx: &mut WindowContext,
     ) {
@@ -186,9 +186,9 @@ impl InlineAssistant {
 
     pub fn assist(
         &mut self,
-        editor: &View<Editor>,
-        workspace: Option<WeakView<Workspace>>,
-        assistant_panel: Option<&View<AssistantPanel>>,
+        editor: &Model<Editor>,
+        workspace: Option<WeakModel<Workspace>>,
+        assistant_panel: Option<&Model<AssistantPanel>>,
         initial_prompt: Option<String>,
         cx: &mut WindowContext,
     ) {
@@ -280,7 +280,7 @@ impl InlineAssistant {
             });
 
             let gutter_dimensions = Arc::new(Mutex::new(GutterDimensions::default()));
-            let prompt_editor = cx.new_view(|cx| {
+            let prompt_editor = cx.new_model(|cx| {
                 PromptEditor::new(
                     assist_id,
                     gutter_dimensions.clone(),
@@ -353,13 +353,13 @@ impl InlineAssistant {
     #[allow(clippy::too_many_arguments)]
     pub fn suggest_assist(
         &mut self,
-        editor: &View<Editor>,
+        editor: &Model<Editor>,
         mut range: Range<Anchor>,
         initial_prompt: String,
         initial_transaction_id: Option<TransactionId>,
         focus: bool,
-        workspace: Option<WeakView<Workspace>>,
-        assistant_panel: Option<&View<AssistantPanel>>,
+        workspace: Option<WeakModel<Workspace>>,
+        assistant_panel: Option<&Model<AssistantPanel>>,
         cx: &mut WindowContext,
     ) -> InlineAssistId {
         let assist_group_id = self.next_assist_group_id.post_inc();
@@ -387,7 +387,7 @@ impl InlineAssistant {
         });
 
         let gutter_dimensions = Arc::new(Mutex::new(GutterDimensions::default()));
-        let prompt_editor = cx.new_view(|cx| {
+        let prompt_editor = cx.new_model(|cx| {
             PromptEditor::new(
                 assist_id,
                 gutter_dimensions.clone(),
@@ -440,9 +440,9 @@ impl InlineAssistant {
 
     fn insert_assist_blocks(
         &self,
-        editor: &View<Editor>,
+        editor: &Model<Editor>,
         range: &Range<Anchor>,
-        prompt_editor: &View<PromptEditor>,
+        prompt_editor: &Model<PromptEditor>,
         cx: &mut WindowContext,
     ) -> [CustomBlockId; 2] {
         let prompt_editor_height = prompt_editor.update(cx, |prompt_editor, cx| {
@@ -544,7 +544,7 @@ impl InlineAssistant {
 
     fn handle_prompt_editor_event(
         &mut self,
-        prompt_editor: View<PromptEditor>,
+        prompt_editor: Model<PromptEditor>,
         event: &PromptEditorEvent,
         cx: &mut WindowContext,
     ) {
@@ -568,7 +568,7 @@ impl InlineAssistant {
         }
     }
 
-    fn handle_editor_newline(&mut self, editor: View<Editor>, cx: &mut WindowContext) {
+    fn handle_editor_newline(&mut self, editor: Model<Editor>, cx: &mut WindowContext) {
         let Some(editor_assists) = self.assists_by_editor.get(&editor.downgrade()) else {
             return;
         };
@@ -599,7 +599,7 @@ impl InlineAssistant {
         cx.propagate();
     }
 
-    fn handle_editor_cancel(&mut self, editor: View<Editor>, cx: &mut WindowContext) {
+    fn handle_editor_cancel(&mut self, editor: Model<Editor>, cx: &mut WindowContext) {
         let Some(editor_assists) = self.assists_by_editor.get(&editor.downgrade()) else {
             return;
         };
@@ -653,7 +653,7 @@ impl InlineAssistant {
         cx.propagate();
     }
 
-    fn handle_editor_release(&mut self, editor: WeakView<Editor>, cx: &mut WindowContext) {
+    fn handle_editor_release(&mut self, editor: WeakModel<Editor>, cx: &mut WindowContext) {
         if let Some(editor_assists) = self.assists_by_editor.get_mut(&editor) {
             for assist_id in editor_assists.assist_ids.clone() {
                 self.finish_assist(assist_id, true, cx);
@@ -661,7 +661,7 @@ impl InlineAssistant {
         }
     }
 
-    fn handle_editor_change(&mut self, editor: View<Editor>, cx: &mut WindowContext) {
+    fn handle_editor_change(&mut self, editor: Model<Editor>, cx: &mut WindowContext) {
         let Some(editor_assists) = self.assists_by_editor.get(&editor.downgrade()) else {
             return;
         };
@@ -688,7 +688,7 @@ impl InlineAssistant {
 
     fn handle_editor_event(
         &mut self,
-        editor: View<Editor>,
+        editor: Model<Editor>,
         event: &EditorEvent,
         cx: &mut WindowContext,
     ) {
@@ -1036,7 +1036,7 @@ impl InlineAssistant {
         assist.codegen.update(cx, |codegen, cx| codegen.stop(cx));
     }
 
-    fn update_editor_highlights(&self, editor: &View<Editor>, cx: &mut WindowContext) {
+    fn update_editor_highlights(&self, editor: &Model<Editor>, cx: &mut WindowContext) {
         let mut gutter_pending_ranges = Vec::new();
         let mut gutter_transformed_ranges = Vec::new();
         let mut foreground_ranges = Vec::new();
@@ -1129,7 +1129,7 @@ impl InlineAssistant {
 
     fn update_editor_blocks(
         &mut self,
-        editor: &View<Editor>,
+        editor: &Model<Editor>,
         assist_id: InlineAssistId,
         cx: &mut WindowContext,
     ) {
@@ -1161,7 +1161,7 @@ impl InlineAssistant {
                     ))
                     .unwrap();
 
-                let deleted_lines_editor = cx.new_view(|cx| {
+                let deleted_lines_editor = cx.new_model(|cx| {
                     let multi_buffer = cx.new_model(|_| {
                         MultiBuffer::without_headers(language::Capability::ReadOnly)
                     });
@@ -1236,7 +1236,7 @@ struct InlineAssistScrollLock {
 
 impl EditorInlineAssists {
     #[allow(clippy::too_many_arguments)]
-    fn new(editor: &View<Editor>, cx: &mut WindowContext) -> Self {
+    fn new(editor: &Model<Editor>, cx: &mut WindowContext) -> Self {
         let (highlight_updates_tx, mut highlight_updates_rx) = async_watch::channel(());
         Self {
             assist_ids: Vec::new(),
@@ -1318,7 +1318,7 @@ impl InlineAssistGroup {
     }
 }
 
-fn build_assist_editor_renderer(editor: &View<PromptEditor>) -> RenderBlock {
+fn build_assist_editor_renderer(editor: &Model<PromptEditor>) -> RenderBlock {
     let editor = editor.clone();
     Arc::new(move |cx: &mut BlockContext| {
         *editor.read(cx).gutter_dimensions.lock() = *cx.gutter_dimensions;
@@ -1359,7 +1359,7 @@ enum PromptEditorEvent {
 struct PromptEditor {
     id: InlineAssistId,
     fs: Arc<dyn Fs>,
-    editor: View<Editor>,
+    editor: Model<Editor>,
     edited_since_done: bool,
     gutter_dimensions: Arc<Mutex<GutterDimensions>>,
     prompt_history: VecDeque<String>,
@@ -1371,7 +1371,7 @@ struct PromptEditor {
     pending_token_count: Task<Result<()>>,
     token_counts: Option<TokenCounts>,
     _token_count_subscriptions: Vec<Subscription>,
-    workspace: Option<WeakView<Workspace>>,
+    workspace: Option<WeakModel<Workspace>>,
     show_rate_limit_notice: bool,
 }
 
@@ -1384,7 +1384,7 @@ pub struct TokenCounts {
 impl EventEmitter<PromptEditorEvent> for PromptEditor {}
 
 impl Render for PromptEditor {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let gutter_dimensions = *self.gutter_dimensions.lock();
         let codegen = self.codegen.read(cx);
 
@@ -1400,7 +1400,9 @@ impl Render for PromptEditor {
                     IconButton::new("cancel", IconName::Close)
                         .icon_color(Color::Muted)
                         .shape(IconButtonShape::Square)
-                        .tooltip(|cx| Tooltip::for_action("Cancel Assist", &menu::Cancel, cx))
+                        .tooltip(|window, cx| {
+                            Tooltip::for_action("Cancel Assist", &menu::Cancel, window, cx)
+                        })
                         .on_click(
                             cx.listener(|_, _, cx| cx.emit(PromptEditorEvent::CancelRequested)),
                         )
@@ -1408,7 +1410,9 @@ impl Render for PromptEditor {
                     IconButton::new("start", IconName::SparkleAlt)
                         .icon_color(Color::Muted)
                         .shape(IconButtonShape::Square)
-                        .tooltip(|cx| Tooltip::for_action("Transform", &menu::Confirm, cx))
+                        .tooltip(|window, cx| {
+                            Tooltip::for_action("Transform", &menu::Confirm, window, cx)
+                        })
                         .on_click(
                             cx.listener(|_, _, cx| cx.emit(PromptEditorEvent::StartRequested)),
                         )
@@ -1428,11 +1432,12 @@ impl Render for PromptEditor {
                     IconButton::new("stop", IconName::Stop)
                         .icon_color(Color::Error)
                         .shape(IconButtonShape::Square)
-                        .tooltip(|cx| {
+                        .tooltip(|window, cx| {
                             Tooltip::with_meta(
                                 "Interrupt Transformation",
                                 Some(&menu::Cancel),
                                 "Changes won't be discarded",
+                                window,
                                 cx,
                             )
                         })
@@ -1445,7 +1450,9 @@ impl Render for PromptEditor {
                     IconButton::new("cancel", IconName::Close)
                         .icon_color(Color::Muted)
                         .shape(IconButtonShape::Square)
-                        .tooltip(|cx| Tooltip::for_action("Cancel Assist", &menu::Cancel, cx))
+                        .tooltip(|cx| {
+                            Tooltip::for_action("Cancel Assist", &menu::Cancel, window, cx)
+                        })
                         .on_click(
                             cx.listener(|_, _, cx| cx.emit(PromptEditorEvent::CancelRequested)),
                         )
@@ -1459,6 +1466,7 @@ impl Render for PromptEditor {
                                     "Restart Transformation",
                                     Some(&menu::Confirm),
                                     "Changes will be discarded",
+                                    window,
                                     cx,
                                 )
                             })
@@ -1470,7 +1478,9 @@ impl Render for PromptEditor {
                         IconButton::new("confirm", IconName::Check)
                             .icon_color(Color::Info)
                             .shape(IconButtonShape::Square)
-                            .tooltip(|cx| Tooltip::for_action("Confirm Assist", &menu::Confirm, cx))
+                            .tooltip(|cx| {
+                                Tooltip::for_action("Confirm Assist", &menu::Confirm, window, cx)
+                            })
                             .on_click(cx.listener(|_, _, cx| {
                                 cx.emit(PromptEditorEvent::ConfirmRequested);
                             }))
@@ -1516,7 +1526,7 @@ impl Render for PromptEditor {
                                 .shape(IconButtonShape::Square)
                                 .icon_size(IconSize::Small)
                                 .icon_color(Color::Muted)
-                                .tooltip(move |cx| {
+                                .tooltip(move |window, cx| {
                                     Tooltip::with_meta(
                                         format!(
                                             "Using {}",
@@ -1527,6 +1537,7 @@ impl Render for PromptEditor {
                                         ),
                                         None,
                                         "Change Model",
+                                        window,
                                         cx,
                                     )
                                 }),
@@ -1606,13 +1617,13 @@ impl PromptEditor {
         prompt_history: VecDeque<String>,
         prompt_buffer: Model<MultiBuffer>,
         codegen: Model<Codegen>,
-        parent_editor: &View<Editor>,
-        assistant_panel: Option<&View<AssistantPanel>>,
-        workspace: Option<WeakView<Workspace>>,
+        parent_editor: &Model<Editor>,
+        assistant_panel: Option<&Model<AssistantPanel>>,
+        workspace: Option<WeakModel<Workspace>>,
         fs: Arc<dyn Fs>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Self {
-        let prompt_editor = cx.new_view(|cx| {
+        let prompt_editor = cx.new_model(|cx| {
             let mut editor = Editor::new(
                 EditorMode::AutoHeight {
                     max_lines: Self::MAX_LINES as usize,
@@ -1662,7 +1673,7 @@ impl PromptEditor {
         this
     }
 
-    fn subscribe_to_editor(&mut self, cx: &mut ViewContext<Self>) {
+    fn subscribe_to_editor(&mut self, cx: &mut ModelContext<Self>) {
         self.editor_subscriptions.clear();
         self.editor_subscriptions
             .push(cx.subscribe(&self.editor, Self::handle_prompt_editor_events));
@@ -1671,17 +1682,17 @@ impl PromptEditor {
     fn set_show_cursor_when_unfocused(
         &mut self,
         show_cursor_when_unfocused: bool,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.editor.update(cx, |editor, cx| {
             editor.set_show_cursor_when_unfocused(show_cursor_when_unfocused, cx)
         });
     }
 
-    fn unlink(&mut self, cx: &mut ViewContext<Self>) {
+    fn unlink(&mut self, cx: &mut ModelContext<Self>) {
         let prompt = self.prompt(cx);
         let focus = self.editor.focus_handle(cx).contains_focused(cx);
-        self.editor = cx.new_view(|cx| {
+        self.editor = cx.new_model(|cx| {
             let mut editor = Editor::auto_height(Self::MAX_LINES as usize, cx);
             editor.set_soft_wrap_mode(language::language_settings::SoftWrap::EditorWidth, cx);
             editor.set_placeholder_text(Self::placeholder_text(self.codegen.read(cx), cx), cx);
@@ -1713,7 +1724,7 @@ impl PromptEditor {
         self.editor.read(cx).text(cx)
     }
 
-    fn toggle_rate_limit_notice(&mut self, _: &ClickEvent, cx: &mut ViewContext<Self>) {
+    fn toggle_rate_limit_notice(&mut self, _: &ClickEvent, cx: &mut ModelContext<Self>) {
         self.show_rate_limit_notice = !self.show_rate_limit_notice;
         if self.show_rate_limit_notice {
             cx.focus_view(&self.editor);
@@ -1723,9 +1734,9 @@ impl PromptEditor {
 
     fn handle_parent_editor_event(
         &mut self,
-        _: View<Editor>,
+        _: Model<Editor>,
         event: &EditorEvent,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         if let EditorEvent::BufferEdited { .. } = event {
             self.count_tokens(cx);
@@ -1734,15 +1745,15 @@ impl PromptEditor {
 
     fn handle_assistant_panel_event(
         &mut self,
-        _: View<AssistantPanel>,
+        _: Model<AssistantPanel>,
         event: &AssistantPanelEvent,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         let AssistantPanelEvent::ContextEdited { .. } = event;
         self.count_tokens(cx);
     }
 
-    fn count_tokens(&mut self, cx: &mut ViewContext<Self>) {
+    fn count_tokens(&mut self, cx: &mut ModelContext<Self>) {
         let assist_id = self.id;
         self.pending_token_count = cx.spawn(|this, mut cx| async move {
             cx.background_executor().timer(Duration::from_secs(1)).await;
@@ -1765,9 +1776,9 @@ impl PromptEditor {
 
     fn handle_prompt_editor_events(
         &mut self,
-        _: View<Editor>,
+        _: Model<Editor>,
         event: &EditorEvent,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         match event {
             EditorEvent::Edited { .. } => {
@@ -1810,7 +1821,7 @@ impl PromptEditor {
         }
     }
 
-    fn handle_codegen_changed(&mut self, _: Model<Codegen>, cx: &mut ViewContext<Self>) {
+    fn handle_codegen_changed(&mut self, _: Model<Codegen>, cx: &mut ModelContext<Self>) {
         match self.codegen.read(cx).status(cx) {
             CodegenStatus::Idle => {
                 self.editor
@@ -1841,7 +1852,7 @@ impl PromptEditor {
         }
     }
 
-    fn cancel(&mut self, _: &editor::actions::Cancel, cx: &mut ViewContext<Self>) {
+    fn cancel(&mut self, _: &editor::actions::Cancel, cx: &mut ModelContext<Self>) {
         match self.codegen.read(cx).status(cx) {
             CodegenStatus::Idle | CodegenStatus::Done | CodegenStatus::Error(_) => {
                 cx.emit(PromptEditorEvent::CancelRequested);
@@ -1852,7 +1863,7 @@ impl PromptEditor {
         }
     }
 
-    fn confirm(&mut self, _: &menu::Confirm, cx: &mut ViewContext<Self>) {
+    fn confirm(&mut self, _: &menu::Confirm, cx: &mut ModelContext<Self>) {
         match self.codegen.read(cx).status(cx) {
             CodegenStatus::Idle => {
                 cx.emit(PromptEditorEvent::StartRequested);
@@ -1873,7 +1884,7 @@ impl PromptEditor {
         }
     }
 
-    fn move_up(&mut self, _: &MoveUp, cx: &mut ViewContext<Self>) {
+    fn move_up(&mut self, _: &MoveUp, cx: &mut ModelContext<Self>) {
         if let Some(ix) = self.prompt_history_ix {
             if ix > 0 {
                 self.prompt_history_ix = Some(ix - 1);
@@ -1893,7 +1904,7 @@ impl PromptEditor {
         }
     }
 
-    fn move_down(&mut self, _: &MoveDown, cx: &mut ViewContext<Self>) {
+    fn move_down(&mut self, _: &MoveDown, cx: &mut ModelContext<Self>) {
         if let Some(ix) = self.prompt_history_ix {
             if ix < self.prompt_history.len() - 1 {
                 self.prompt_history_ix = Some(ix + 1);
@@ -1913,17 +1924,17 @@ impl PromptEditor {
         }
     }
 
-    fn cycle_prev(&mut self, _: &CyclePreviousInlineAssist, cx: &mut ViewContext<Self>) {
+    fn cycle_prev(&mut self, _: &CyclePreviousInlineAssist, cx: &mut ModelContext<Self>) {
         self.codegen
             .update(cx, |codegen, cx| codegen.cycle_prev(cx));
     }
 
-    fn cycle_next(&mut self, _: &CycleNextInlineAssist, cx: &mut ViewContext<Self>) {
+    fn cycle_next(&mut self, _: &CycleNextInlineAssist, cx: &mut ModelContext<Self>) {
         self.codegen
             .update(cx, |codegen, cx| codegen.cycle_next(cx));
     }
 
-    fn render_cycle_controls(&self, cx: &ViewContext<Self>) -> AnyElement {
+    fn render_cycle_controls(&self, cx: &ModelContext<Self>) -> AnyElement {
         let codegen = self.codegen.read(cx);
         let disabled = matches!(codegen.status(cx), CodegenStatus::Idle);
 
@@ -1965,7 +1976,7 @@ impl PromptEditor {
                     .tooltip({
                         let focus_handle = self.editor.focus_handle(cx);
                         move |cx| {
-                            cx.new_view(|cx| {
+                            cx.new_model(|cx| {
                                 let mut tooltip = Tooltip::new("Previous Alternative").key_binding(
                                     KeyBinding::for_action_in(
                                         &CyclePreviousInlineAssist,
@@ -2007,7 +2018,7 @@ impl PromptEditor {
                     .tooltip({
                         let focus_handle = self.editor.focus_handle(cx);
                         move |cx| {
-                            cx.new_view(|cx| {
+                            cx.new_model(|cx| {
                                 let mut tooltip = Tooltip::new("Next Alternative").key_binding(
                                     KeyBinding::for_action_in(
                                         &CycleNextInlineAssist,
@@ -2031,7 +2042,7 @@ impl PromptEditor {
             .into_any_element()
     }
 
-    fn render_token_count(&self, cx: &mut ViewContext<Self>) -> Option<impl IntoElement> {
+    fn render_token_count(&self, cx: &mut ModelContext<Self>) -> Option<impl IntoElement> {
         let model = LanguageModelRegistry::read_global(cx).active_model()?;
         let token_counts = self.token_counts?;
         let max_token_count = model.max_token_count();
@@ -2061,7 +2072,7 @@ impl PromptEditor {
             );
         if let Some(workspace) = self.workspace.clone() {
             token_count = token_count
-                .tooltip(move |cx| {
+                .tooltip(move |window, cx| {
                     Tooltip::with_meta(
                         format!(
                             "Tokens Used ({} from the Assistant Panel)",
@@ -2069,6 +2080,7 @@ impl PromptEditor {
                         ),
                         None,
                         "Click to open the Assistant Panel",
+                        window,
                         cx,
                     )
                 })
@@ -2091,7 +2103,7 @@ impl PromptEditor {
         Some(token_count)
     }
 
-    fn render_prompt_editor(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render_prompt_editor(&self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let settings = ThemeSettings::get_global(cx);
         let text_style = TextStyle {
             color: if self.editor.read(cx).read_only(cx) {
@@ -2117,7 +2129,7 @@ impl PromptEditor {
         )
     }
 
-    fn render_rate_limit_notice(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render_rate_limit_notice(&self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         Popover::new().child(
             v_flex()
                 .occlude()
@@ -2198,11 +2210,11 @@ fn set_rate_limit_notice_dismissed(is_dismissed: bool, cx: &mut AppContext) {
 struct InlineAssist {
     group_id: InlineAssistGroupId,
     range: Range<Anchor>,
-    editor: WeakView<Editor>,
+    editor: WeakModel<Editor>,
     decorations: Option<InlineAssistDecorations>,
     codegen: Model<Codegen>,
     _subscriptions: Vec<Subscription>,
-    workspace: Option<WeakView<Workspace>>,
+    workspace: Option<WeakModel<Workspace>>,
     include_context: bool,
 }
 
@@ -2212,13 +2224,13 @@ impl InlineAssist {
         assist_id: InlineAssistId,
         group_id: InlineAssistGroupId,
         include_context: bool,
-        editor: &View<Editor>,
-        prompt_editor: &View<PromptEditor>,
+        editor: &Model<Editor>,
+        prompt_editor: &Model<PromptEditor>,
         prompt_block_id: CustomBlockId,
         end_block_id: CustomBlockId,
         range: Range<Anchor>,
         codegen: Model<Codegen>,
-        workspace: Option<WeakView<Workspace>>,
+        workspace: Option<WeakModel<Workspace>>,
         cx: &mut WindowContext,
     ) -> Self {
         let prompt_editor_focus_handle = prompt_editor.focus_handle(cx);
@@ -2344,7 +2356,7 @@ impl InlineAssist {
 
 struct InlineAssistDecorations {
     prompt_block_id: CustomBlockId,
-    prompt_editor: View<PromptEditor>,
+    prompt_editor: Model<PromptEditor>,
     removed_line_block_ids: HashSet<CustomBlockId>,
     end_block_id: CustomBlockId,
 }
@@ -3405,8 +3417,8 @@ where
 }
 
 struct AssistantCodeActionProvider {
-    editor: WeakView<Editor>,
-    workspace: WeakView<Workspace>,
+    editor: WeakModel<Editor>,
+    workspace: WeakModel<Workspace>,
 }
 
 impl CodeActionProvider for AssistantCodeActionProvider {

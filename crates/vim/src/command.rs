@@ -11,7 +11,7 @@ use editor::{
     actions::{SortLinesCaseInsensitive, SortLinesCaseSensitive},
     Editor, ToPoint,
 };
-use gpui::{actions, impl_actions, Action, AppContext, Global, ViewContext};
+use gpui::{actions, impl_actions, Action, AppContext, Global, ModelContext};
 use language::Point;
 use multi_buffer::MultiBufferRow;
 use serde::Deserialize;
@@ -87,7 +87,7 @@ impl Deref for WrappedAction {
     }
 }
 
-pub fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
+pub fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
     Vim::action(editor, cx, |vim, _: &VisualCommand, cx| {
         let Some(workspace) = vim.workspace(cx) else {
             return;
@@ -848,7 +848,7 @@ mod test {
     use editor::Editor;
     use gpui::TestAppContext;
     use indoc::indoc;
-    use ui::ViewContext;
+    use ui::ModelContext;
     use workspace::Workspace;
 
     #[gpui::test]
@@ -1042,7 +1042,7 @@ mod test {
         workspace: &mut Workspace,
         expected_path: &str,
         expected_text: &str,
-        cx: &mut ViewContext<Workspace>,
+        cx: &mut ModelContext<Workspace>,
     ) {
         let active_editor = workspace.active_item_as::<Editor>(cx).unwrap();
 

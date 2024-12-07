@@ -7,7 +7,11 @@ use crate::{Avatar, AvatarAudioStatusIndicator};
 pub struct AvatarStory;
 
 impl Render for AvatarStory {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(
+        &mut self,
+        window: &mut Window,
+        cx: &mut gpui::ModelContext<Self>,
+    ) -> impl IntoElement {
         Story::container()
             .child(Story::title_for::<Avatar>())
             .child(

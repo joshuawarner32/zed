@@ -29,7 +29,7 @@ pub trait Tool: 'static + Send + Sync {
     fn run(
         self: Arc<Self>,
         input: serde_json::Value,
-        workspace: WeakView<Workspace>,
+        workspace: WeakModel<Workspace>,
         cx: &mut WindowContext,
     ) -> Task<Result<String>>;
 }

@@ -83,7 +83,7 @@ impl NotebookEditor {
     pub fn new(
         project: Model<Project>,
         notebook_item: Model<NotebookItem>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Self {
         let focus_handle = cx.focus_handle();
 
@@ -148,7 +148,7 @@ impl NotebookEditor {
         }
     }
 
-    fn has_outputs(&self, cx: &ViewContext<Self>) -> bool {
+    fn has_outputs(&self, cx: &ModelContext<Self>) -> bool {
         self.cell_map.values().any(|cell| {
             if let Cell::Code(code_cell) = cell {
                 code_cell.read(cx).has_outputs()
@@ -168,7 +168,7 @@ impl NotebookEditor {
         })
     }
 
-    fn clear_outputs(&mut self, cx: &mut ViewContext<Self>) {
+    fn clear_outputs(&mut self, cx: &mut ModelContext<Self>) {
         for cell in self.cell_map.values() {
             if let Cell::Code(code_cell) = cell {
                 code_cell.update(cx, |cell, _cx| {
@@ -178,27 +178,27 @@ impl NotebookEditor {
         }
     }
 
-    fn run_cells(&mut self, cx: &mut ViewContext<Self>) {
+    fn run_cells(&mut self, cx: &mut ModelContext<Self>) {
         println!("Cells would all run here, if that was implemented!");
     }
 
-    fn open_notebook(&mut self, _: &OpenNotebook, _cx: &mut ViewContext<Self>) {
+    fn open_notebook(&mut self, _: &OpenNotebook, _cx: &mut ModelContext<Self>) {
         println!("Open notebook triggered");
     }
 
-    fn move_cell_up(&mut self, cx: &mut ViewContext<Self>) {
+    fn move_cell_up(&mut self, cx: &mut ModelContext<Self>) {
         println!("Move cell up triggered");
     }
 
-    fn move_cell_down(&mut self, cx: &mut ViewContext<Self>) {
+    fn move_cell_down(&mut self, cx: &mut ModelContext<Self>) {
         println!("Move cell down triggered");
     }
 
-    fn add_markdown_block(&mut self, cx: &mut ViewContext<Self>) {
+    fn add_markdown_block(&mut self, cx: &mut ModelContext<Self>) {
         println!("Add markdown block triggered");
     }
 
-    fn add_code_block(&mut self, cx: &mut ViewContext<Self>) {
+    fn add_code_block(&mut self, cx: &mut ModelContext<Self>) {
         println!("Add code block triggered");
     }
 
@@ -214,7 +214,7 @@ impl NotebookEditor {
         &mut self,
         index: usize,
         jump_to_index: bool,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         // let previous_index = self.selected_cell_index;
         self.selected_cell_index = index;
@@ -227,7 +227,7 @@ impl NotebookEditor {
         }
     }
 
-    pub fn select_next(&mut self, _: &menu::SelectNext, cx: &mut ViewContext<Self>) {
+    pub fn select_next(&mut self, _: &menu::SelectNext, cx: &mut ModelContext<Self>) {
         let count = self.cell_count();
         if count > 0 {
             let index = self.selected_index();
@@ -241,7 +241,7 @@ impl NotebookEditor {
         }
     }
 
-    pub fn select_previous(&mut self, _: &menu::SelectPrev, cx: &mut ViewContext<Self>) {
+    pub fn select_previous(&mut self, _: &menu::SelectPrev, cx: &mut ModelContext<Self>) {
         let count = self.cell_count();
         if count > 0 {
             let index = self.selected_index();
@@ -251,7 +251,7 @@ impl NotebookEditor {
         }
     }
 
-    pub fn select_first(&mut self, _: &menu::SelectFirst, cx: &mut ViewContext<Self>) {
+    pub fn select_first(&mut self, _: &menu::SelectFirst, cx: &mut ModelContext<Self>) {
         let count = self.cell_count();
         if count > 0 {
             self.set_selected_index(0, true, cx);
@@ -259,7 +259,7 @@ impl NotebookEditor {
         }
     }
 
-    pub fn select_last(&mut self, _: &menu::SelectLast, cx: &mut ViewContext<Self>) {
+    pub fn select_last(&mut self, _: &menu::SelectLast, cx: &mut ModelContext<Self>) {
         let count = self.cell_count();
         if count > 0 {
             self.set_selected_index(count - 1, true, cx);
@@ -267,11 +267,11 @@ impl NotebookEditor {
         }
     }
 
-    fn jump_to_cell(&mut self, index: usize, _cx: &mut ViewContext<Self>) {
+    fn jump_to_cell(&mut self, index: usize, _cx: &mut ModelContext<Self>) {
         self.cell_list.scroll_to_reveal_item(index);
     }
 
-    fn button_group(cx: &ViewContext<Self>) -> Div {
+    fn button_group(cx: &ModelContext<Self>) -> Div {
         v_flex()
             .gap(DynamicSpacing::Base04.rems(cx))
             .items_center()
@@ -287,13 +287,13 @@ impl NotebookEditor {
     fn render_notebook_control(
         id: impl Into<SharedString>,
         icon: IconName,
-        _cx: &ViewContext<Self>,
+        _cx: &ModelContext<Self>,
     ) -> IconButton {
         let id: ElementId = ElementId::Name(id.into());
         IconButton::new(id, icon).width(px(CONTROL_SIZE).into())
     }
 
-    fn render_notebook_controls(&self, cx: &ViewContext<Self>) -> impl IntoElement {
+    fn render_notebook_controls(&self, cx: &ModelContext<Self>) -> impl IntoElement {
         let has_outputs = self.has_outputs(cx);
 
         v_flex()
@@ -311,7 +311,7 @@ impl NotebookEditor {
                         Self::button_group(cx)
                             .child(
                                 Self::render_notebook_control("run-all-cells", IconName::Play, cx)
-                                    .tooltip(move |cx| {
+                                    .tooltip(move |window, cx| {
                                         Tooltip::for_action("Execute all cells", &RunAll, cx)
                                     })
                                     .on_click(|_, cx| {
@@ -325,7 +325,7 @@ impl NotebookEditor {
                                     cx,
                                 )
                                 .disabled(!has_outputs)
-                                .tooltip(move |cx| {
+                                .tooltip(move |window, cx| {
                                     Tooltip::for_action("Clear all outputs", &ClearOutputs, cx)
                                 })
                                 .on_click(|_, cx| {
@@ -341,7 +341,7 @@ impl NotebookEditor {
                                     IconName::ArrowUp,
                                     cx,
                                 )
-                                .tooltip(move |cx| {
+                                .tooltip(move |window, cx| {
                                     Tooltip::for_action("Move cell up", &MoveCellUp, cx)
                                 })
                                 .on_click(|_, cx| {
@@ -354,7 +354,7 @@ impl NotebookEditor {
                                     IconName::ArrowDown,
                                     cx,
                                 )
-                                .tooltip(move |cx| {
+                                .tooltip(move |window, cx| {
                                     Tooltip::for_action("Move cell down", &MoveCellDown, cx)
                                 })
                                 .on_click(|_, cx| {
@@ -370,7 +370,7 @@ impl NotebookEditor {
                                     IconName::Plus,
                                     cx,
                                 )
-                                .tooltip(move |cx| {
+                                .tooltip(move |window, cx| {
                                     Tooltip::for_action("Add markdown block", &AddMarkdownBlock, cx)
                                 })
                                 .on_click(|_, cx| {
@@ -379,7 +379,7 @@ impl NotebookEditor {
                             )
                             .child(
                                 Self::render_notebook_control("new-code-cell", IconName::Code, cx)
-                                    .tooltip(move |cx| {
+                                    .tooltip(move |window, cx| {
                                         Tooltip::for_action("Add code block", &AddCodeBlock, cx)
                                     })
                                     .on_click(|_, cx| {
@@ -416,7 +416,7 @@ impl NotebookEditor {
         &self,
         index: usize,
         cell: &Cell,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> impl IntoElement {
         let cell_position = self.cell_position(index);
 
@@ -449,7 +449,7 @@ impl NotebookEditor {
 }
 
 impl Render for NotebookEditor {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         div()
             .key_context("notebook")
             .track_focus(&self.focus_handle)
@@ -613,7 +613,7 @@ impl EventEmitter<()> for NotebookEditor {}
 // impl EventEmitter<ToolbarItemEvent> for NotebookControls {}
 
 // impl Render for NotebookControls {
-//     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+//     fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
 //         div().child("notebook controls")
 //     }
 // }
@@ -622,7 +622,7 @@ impl EventEmitter<()> for NotebookEditor {}
 //     fn set_active_pane_item(
 //         &mut self,
 //         active_pane_item: Option<&dyn workspace::ItemHandle>,
-//         cx: &mut ViewContext<Self>,
+//         cx: &mut ModelContext<Self>,
 //     ) -> workspace::ToolbarItemLocation {
 //         cx.notify();
 //         self.active_item = None;
@@ -634,7 +634,7 @@ impl EventEmitter<()> for NotebookEditor {}
 //         ToolbarItemLocation::PrimaryLeft
 //     }
 
-//     fn pane_focus_update(&mut self, pane_focused: bool, _: &mut ViewContext<Self>) {
+//     fn pane_focus_update(&mut self, pane_focused: bool, _: &mut ModelContext<Self>) {
 //         self.pane_focused = pane_focused;
 //     }
 // }
@@ -645,12 +645,12 @@ impl Item for NotebookEditor {
     fn clone_on_split(
         &self,
         _workspace_id: Option<workspace::WorkspaceId>,
-        cx: &mut ViewContext<Self>,
-    ) -> Option<gpui::View<Self>>
+        cx: &mut ModelContext<Self>,
+    ) -> Option<gpui::Model<Self>>
     where
         Self: Sized,
     {
-        Some(cx.new_view(|cx| Self::new(self.project.clone(), self.notebook_item.clone(), cx)))
+        Some(cx.new_model(|cx| Self::new(self.project.clone(), self.notebook_item.clone(), cx)))
     }
 
     fn for_each_project_item(
@@ -693,11 +693,11 @@ impl Item for NotebookEditor {
     }
 
     // TODO
-    fn as_searchable(&self, _: &View<Self>) -> Option<Box<dyn SearchableItemHandle>> {
+    fn as_searchable(&self, _: &Model<Self>) -> Option<Box<dyn SearchableItemHandle>> {
         None
     }
 
-    fn set_nav_history(&mut self, _: workspace::ItemNavHistory, _: &mut ViewContext<Self>) {
+    fn set_nav_history(&mut self, _: workspace::ItemNavHistory, _: &mut ModelContext<Self>) {
         // TODO
     }
 
@@ -710,7 +710,7 @@ impl Item for NotebookEditor {
         &mut self,
         _format: bool,
         _project: Model<Project>,
-        _cx: &mut ViewContext<Self>,
+        _cx: &mut ModelContext<Self>,
     ) -> Task<Result<()>> {
         unimplemented!("save() must be implemented if can_save() returns true")
     }
@@ -720,7 +720,7 @@ impl Item for NotebookEditor {
         &mut self,
         _project: Model<Project>,
         _path: ProjectPath,
-        _cx: &mut ViewContext<Self>,
+        _cx: &mut ModelContext<Self>,
     ) -> Task<Result<()>> {
         unimplemented!("save_as() must be implemented if can_save() returns true")
     }
@@ -728,7 +728,7 @@ impl Item for NotebookEditor {
     fn reload(
         &mut self,
         _project: Model<Project>,
-        _cx: &mut ViewContext<Self>,
+        _cx: &mut ModelContext<Self>,
     ) -> Task<Result<()>> {
         unimplemented!("reload() must be implemented if can_save() returns true")
     }
@@ -748,7 +748,7 @@ impl ProjectItem for NotebookEditor {
     fn for_project_item(
         project: Model<Project>,
         item: Model<Self::Item>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Self
     where
         Self: Sized,

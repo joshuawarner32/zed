@@ -15,7 +15,7 @@ use workspace::{
 };
 
 pub struct ProposedChangesEditor {
-    editor: View<Editor>,
+    editor: Model<Editor>,
     multibuffer: Model<MultiBuffer>,
     title: SharedString,
     buffer_entries: Vec<BufferEntry>,
@@ -35,7 +35,7 @@ struct BufferEntry {
 }
 
 pub struct ProposedChangesEditorToolbar {
-    current_editor: Option<View<ProposedChangesEditor>>,
+    current_editor: Option<Model<ProposedChangesEditor>>,
 }
 
 struct RecalculateDiff {
@@ -54,12 +54,12 @@ impl ProposedChangesEditor {
         title: impl Into<SharedString>,
         locations: Vec<ProposedChangeLocation<T>>,
         project: Option<Model<Project>>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Self {
         let multibuffer = cx.new_model(|_| MultiBuffer::new(Capability::ReadWrite));
         let (recalculate_diffs_tx, mut recalculate_diffs_rx) = mpsc::unbounded();
         let mut this = Self {
-            editor: cx.new_view(|cx| {
+            editor: cx.new_model(|cx| {
                 let mut editor = Editor::for_multibuffer(multibuffer.clone(), project, true, cx);
                 editor.set_expand_all_diff_hunks();
                 editor.set_completion_provider(None);
@@ -120,7 +120,7 @@ impl ProposedChangesEditor {
         })
     }
 
-    pub fn set_title(&mut self, title: SharedString, cx: &mut ViewContext<Self>) {
+    pub fn set_title(&mut self, title: SharedString, cx: &mut ModelContext<Self>) {
         self.title = title;
         cx.notify();
     }
@@ -128,7 +128,7 @@ impl ProposedChangesEditor {
     pub fn reset_locations<T: ToOffset>(
         &mut self,
         locations: Vec<ProposedChangeLocation<T>>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         // Undo all branch changes
         for entry in &self.buffer_entries {
@@ -206,7 +206,7 @@ impl ProposedChangesEditor {
         &mut self,
         buffer: Model<Buffer>,
         event: &BufferEvent,
-        _cx: &mut ViewContext<Self>,
+        _cx: &mut ModelContext<Self>,
     ) {
         match event {
             BufferEvent::Operation { .. } => {
@@ -231,7 +231,7 @@ impl ProposedChangesEditor {
 }
 
 impl Render for ProposedChangesEditor {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         div()
             .size_full()
             .key_context("ProposedChangesEditor")
@@ -258,14 +258,14 @@ impl Item for ProposedChangesEditor {
         Some(self.title.clone())
     }
 
-    fn as_searchable(&self, _: &View<Self>) -> Option<Box<dyn SearchableItemHandle>> {
+    fn as_searchable(&self, _: &Model<Self>) -> Option<Box<dyn SearchableItemHandle>> {
         Some(Box::new(self.editor.clone()))
     }
 
     fn act_as_type<'a>(
         &'a self,
         type_id: TypeId,
-        self_handle: &'a View<Self>,
+        self_handle: &'a Model<Self>,
         _: &'a AppContext,
     ) -> Option<gpui::AnyView> {
         if type_id == TypeId::of::<Self>() {
@@ -277,17 +277,17 @@ impl Item for ProposedChangesEditor {
         }
     }
 
-    fn added_to_workspace(&mut self, workspace: &mut Workspace, cx: &mut ViewContext<Self>) {
+    fn added_to_workspace(&mut self, workspace: &mut Workspace, cx: &mut ModelContext<Self>) {
         self.editor.update(cx, |editor, cx| {
             Item::added_to_workspace(editor, workspace, cx)
         });
     }
 
-    fn deactivated(&mut self, cx: &mut ViewContext<Self>) {
+    fn deactivated(&mut self, cx: &mut ModelContext<Self>) {
         self.editor.update(cx, Item::deactivated);
     }
 
-    fn navigate(&mut self, data: Box<dyn std::any::Any>, cx: &mut ViewContext<Self>) -> bool {
+    fn navigate(&mut self, data: Box<dyn std::any::Any>, cx: &mut ModelContext<Self>) -> bool {
         self.editor
             .update(cx, |editor, cx| Item::navigate(editor, data, cx))
     }
@@ -295,7 +295,7 @@ impl Item for ProposedChangesEditor {
     fn set_nav_history(
         &mut self,
         nav_history: workspace::ItemNavHistory,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.editor.update(cx, |editor, cx| {
             Item::set_nav_history(editor, nav_history, cx)
@@ -310,7 +310,7 @@ impl Item for ProposedChangesEditor {
         &mut self,
         format: bool,
         project: Model<Project>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Task<gpui::Result<()>> {
         self.editor
             .update(cx, |editor, cx| Item::save(editor, format, project, cx))
@@ -334,7 +334,7 @@ impl ProposedChangesEditorToolbar {
 }
 
 impl Render for ProposedChangesEditorToolbar {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let button_like = ButtonLike::new("apply-changes").child(Label::new("Apply All"));
 
         match &self.current_editor {
@@ -358,7 +358,7 @@ impl ToolbarItemView for ProposedChangesEditorToolbar {
     fn set_active_pane_item(
         &mut self,
         active_pane_item: Option<&dyn workspace::ItemHandle>,
-        _cx: &mut ViewContext<Self>,
+        _cx: &mut ModelContext<Self>,
     ) -> workspace::ToolbarItemLocation {
         self.current_editor =
             active_pane_item.and_then(|item| item.downcast::<ProposedChangesEditor>());

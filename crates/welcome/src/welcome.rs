@@ -6,7 +6,7 @@ use client::{telemetry::Telemetry, TelemetrySettings};
 use db::kvp::KEY_VALUE_STORE;
 use gpui::{
     actions, svg, Action, AppContext, EventEmitter, FocusHandle, FocusableView, InteractiveElement,
-    ParentElement, Render, Styled, Subscription, Task, View, ViewContext, VisualContext, WeakView,
+    ParentElement, Render, Styled, Subscription, Task, View, ModelContext, VisualContext, WeakView,
     WindowContext,
 };
 use settings::{Settings, SettingsStore};
@@ -62,14 +62,14 @@ pub fn show_welcome_view(
 }
 
 pub struct WelcomePage {
-    workspace: WeakView<Workspace>,
+    workspace: WeakModel<Workspace>,
     focus_handle: FocusHandle,
     telemetry: Arc<Telemetry>,
     _settings_subscription: Subscription,
 }
 
 impl Render for WelcomePage {
-    fn render(&mut self, cx: &mut gpui::ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut gpui::ModelContext<Self>) -> impl IntoElement {
         h_flex()
             .size_full()
             .bg(cx.theme().colors().editor_background)
@@ -342,8 +342,8 @@ impl Render for WelcomePage {
 }
 
 impl WelcomePage {
-    pub fn new(workspace: &Workspace, cx: &mut ViewContext<Workspace>) -> View<Self> {
-        let this = cx.new_view(|cx| {
+    pub fn new(workspace: &Workspace, cx: &mut ModelContext<Workspace>) -> Model<Self> {
+        let this = cx.new_model(|cx| {
             cx.on_release(|this: &mut Self, _, _| {
                 this.telemetry
                     .report_app_event("welcome page: close".to_string());
@@ -372,7 +372,7 @@ impl WelcomePage {
     fn update_settings<T: Settings>(
         &mut self,
         selection: &Selection,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
         callback: impl 'static + Send + Fn(&mut T::FileContent, bool),
     ) {
         if let Some(workspace) = self.workspace.upgrade() {
@@ -417,9 +417,9 @@ impl Item for WelcomePage {
     fn clone_on_split(
         &self,
         _workspace_id: Option<WorkspaceId>,
-        cx: &mut ViewContext<Self>,
-    ) -> Option<View<Self>> {
-        Some(cx.new_view(|cx| WelcomePage {
+        cx: &mut ModelContext<Self>,
+    ) -> Option<Model<Self>> {
+        Some(cx.new_model(|cx| WelcomePage {
             focus_handle: cx.focus_handle(),
             workspace: self.workspace.clone(),
             telemetry: self.telemetry.clone(),

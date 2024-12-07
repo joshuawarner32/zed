@@ -1,17 +1,17 @@
 use crate::{state::Mode, Vim};
 use editor::{scroll::Autoscroll, Bias, Editor};
-use gpui::{actions, Action, ViewContext};
+use gpui::{actions, Action, ModelContext};
 use language::SelectionGoal;
 
 actions!(vim, [NormalBefore, TemporaryNormal]);
 
-pub fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
+pub fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
     Vim::action(editor, cx, Vim::normal_before);
     Vim::action(editor, cx, Vim::temporary_normal);
 }
 
 impl Vim {
-    fn normal_before(&mut self, action: &NormalBefore, cx: &mut ViewContext<Self>) {
+    fn normal_before(&mut self, action: &NormalBefore, cx: &mut ModelContext<Self>) {
         if self.active_operator().is_some() {
             self.operator_stack.clear();
             self.sync_vim_settings(cx);
@@ -37,7 +37,7 @@ impl Vim {
         self.repeat(true, cx)
     }
 
-    fn temporary_normal(&mut self, _: &TemporaryNormal, cx: &mut ViewContext<Self>) {
+    fn temporary_normal(&mut self, _: &TemporaryNormal, cx: &mut ModelContext<Self>) {
         self.switch_mode(Mode::Normal, true, cx);
         self.temp_mode = true;
     }

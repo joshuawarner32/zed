@@ -5,13 +5,13 @@ use ui::Tooltip;
 pub struct ScrollStory;
 
 impl ScrollStory {
-    pub fn view(cx: &mut WindowContext) -> View<ScrollStory> {
-        cx.new_view(|_cx| ScrollStory)
+    pub fn view(cx: &mut WindowContext) -> Model<ScrollStory> {
+        cx.new_model(|_cx| ScrollStory)
     }
 }
 
 impl Render for ScrollStory {
-    fn render(&mut self, cx: &mut gpui::ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut gpui::ModelContext<Self>) -> impl IntoElement {
         let theme = cx.theme();
         let color_1 = theme.status().created;
         let color_2 = theme.status().modified;

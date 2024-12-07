@@ -29,35 +29,35 @@ impl AssetSource for Assets {
     }
 }
 
-struct HelloWorld {
+struct OpacityModel {
     _task: Option<Task<()>>,
     opacity: f32,
 }
 
-impl HelloWorld {
-    fn new(_: &mut ViewContext<Self>) -> Self {
+impl OpacityModel {
+    fn new(_: &mut ModelContext<Self>) -> Self {
         Self {
             _task: None,
             opacity: 0.5,
         }
     }
 
-    fn change_opacity(&mut self, _: &ClickEvent, cx: &mut ViewContext<Self>) {
+    fn change_opacity(&mut self, _: &ClickEvent, cx: &mut ModelContext<Self>) {
         self.opacity = 0.0;
         cx.notify();
 
-        self._task = Some(cx.spawn(|view, mut cx| async move {
+        self._task = Some(cx.spawn(|model, cx| async move {
             loop {
                 Timer::after(Duration::from_secs_f32(0.05)).await;
                 let mut stop = false;
                 let _ = cx.update(|cx| {
-                    view.update(cx, |view, cx| {
-                        if view.opacity >= 1.0 {
+                    model.update(cx, |model, cx| {
+                        if model.opacity >= 1.0 {
                             stop = true;
                             return;
                         }
 
-                        view.opacity += 0.1;
+                        model.opacity += 0.1;
                         cx.notify();
                     })
                 });
@@ -70,8 +70,8 @@ impl HelloWorld {
     }
 }
 
-impl Render for HelloWorld {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+impl Render for OpacityModel {
+    fn render(&mut self, _window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_row()
@@ -91,7 +91,9 @@ impl Render for HelloWorld {
             .child(
                 div()
                     .id("panel")
-                    .on_click(cx.listener(Self::change_opacity))
+                    .on_click(
+                        cx.listener(|model, event, _window, cx| model.change_opacity(event, cx)),
+                    )
                     .absolute()
                     .top_8()
                     .left_8()
@@ -164,7 +166,7 @@ fn main() {
                     window_bounds: Some(WindowBounds::Windowed(bounds)),
                     ..Default::default()
                 },
-                |cx| cx.new_view(HelloWorld::new),
+                |_window, cx| OpacityModel::new(cx),
             )
             .unwrap();
         });

@@ -4,8 +4,8 @@ use crate::active_item_selection_properties;
 use fuzzy::{StringMatch, StringMatchCandidate};
 use gpui::{
     rems, Action, AnyElement, AppContext, DismissEvent, EventEmitter, FocusableView,
-    InteractiveElement, Model, ParentElement, Render, SharedString, Styled, Subscription, Task,
-    View, ViewContext, VisualContext, WeakView,
+    InteractiveElement, Model, ModelContext, ParentElement, Render, SharedString, Styled,
+    Subscription, Task, View, VisualContext, WeakView,
 };
 use picker::{highlighted_match_with_paths::HighlightedText, Picker, PickerDelegate};
 use project::{task_store::TaskStore, TaskSourceKind};
@@ -28,7 +28,7 @@ pub(crate) struct TasksModalDelegate {
     divider_index: Option<usize>,
     matches: Vec<StringMatch>,
     selected_index: usize,
-    workspace: WeakView<Workspace>,
+    workspace: WeakModel<Workspace>,
     prompt: String,
     task_context: TaskContext,
     placeholder_text: Arc<str>,
@@ -38,7 +38,7 @@ impl TasksModalDelegate {
     fn new(
         task_store: Model<TaskStore>,
         task_context: TaskContext,
-        workspace: WeakView<Workspace>,
+        workspace: WeakModel<Workspace>,
     ) -> Self {
         Self {
             task_store,
@@ -92,7 +92,7 @@ impl TasksModalDelegate {
 }
 
 pub(crate) struct TasksModal {
-    picker: View<Picker<TasksModalDelegate>>,
+    picker: Model<Picker<TasksModalDelegate>>,
     _subscription: Subscription,
 }
 
@@ -100,10 +100,10 @@ impl TasksModal {
     pub(crate) fn new(
         task_store: Model<TaskStore>,
         task_context: TaskContext,
-        workspace: WeakView<Workspace>,
-        cx: &mut ViewContext<Self>,
+        workspace: WeakModel<Workspace>,
+        cx: &mut ModelContext<Self>,
     ) -> Self {
-        let picker = cx.new_view(|cx| {
+        let picker = cx.new_model(|cx| {
             Picker::uniform_list(
                 TasksModalDelegate::new(task_store, task_context, workspace),
                 cx,
@@ -120,7 +120,7 @@ impl TasksModal {
 }
 
 impl Render for TasksModal {
-    fn render(&mut self, _: &mut ViewContext<Self>) -> impl gpui::prelude::IntoElement {
+    fn render(&mut self, _: &mut ModelContext<Self>) -> impl gpui::prelude::IntoElement {
         v_flex()
             .key_context("TasksModal")
             .w(rems(34.))
@@ -149,7 +149,7 @@ impl PickerDelegate for TasksModalDelegate {
         self.selected_index
     }
 
-    fn set_selected_index(&mut self, ix: usize, _cx: &mut ViewContext<picker::Picker<Self>>) {
+    fn set_selected_index(&mut self, ix: usize, _cx: &mut ModelContext<picker::Picker<Self>>) {
         self.selected_index = ix;
     }
 
@@ -160,7 +160,7 @@ impl PickerDelegate for TasksModalDelegate {
     fn update_matches(
         &mut self,
         query: String,
-        cx: &mut ViewContext<picker::Picker<Self>>,
+        cx: &mut ModelContext<picker::Picker<Self>>,
     ) -> Task<()> {
         cx.spawn(move |picker, mut cx| async move {
             let Some(candidates) = picker
@@ -246,7 +246,7 @@ impl PickerDelegate for TasksModalDelegate {
         })
     }
 
-    fn confirm(&mut self, omit_history_entry: bool, cx: &mut ViewContext<picker::Picker<Self>>) {
+    fn confirm(&mut self, omit_history_entry: bool, cx: &mut ModelContext<picker::Picker<Self>>) {
         let current_match_index = self.selected_index();
         let task = self
             .matches
@@ -269,7 +269,7 @@ impl PickerDelegate for TasksModalDelegate {
         cx.emit(DismissEvent);
     }
 
-    fn dismissed(&mut self, cx: &mut ViewContext<picker::Picker<Self>>) {
+    fn dismissed(&mut self, cx: &mut ModelContext<picker::Picker<Self>>) {
         cx.emit(DismissEvent);
     }
 
@@ -277,7 +277,7 @@ impl PickerDelegate for TasksModalDelegate {
         &self,
         ix: usize,
         selected: bool,
-        cx: &mut ViewContext<picker::Picker<Self>>,
+        cx: &mut ModelContext<picker::Picker<Self>>,
     ) -> Option<Self::ListItem> {
         let candidates = self.candidates.as_ref()?;
         let hit = &self.matches[ix];
@@ -387,7 +387,7 @@ impl PickerDelegate for TasksModalDelegate {
     fn confirm_completion(
         &mut self,
         _: String,
-        _: &mut ViewContext<Picker<Self>>,
+        _: &mut ModelContext<Picker<Self>>,
     ) -> Option<String> {
         let task_index = self.matches.get(self.selected_index())?.candidate_id;
         let tasks = self.candidates.as_ref()?;
@@ -395,7 +395,7 @@ impl PickerDelegate for TasksModalDelegate {
         Some(task.resolved.as_ref()?.command_label.clone())
     }
 
-    fn confirm_input(&mut self, omit_history_entry: bool, cx: &mut ViewContext<Picker<Self>>) {
+    fn confirm_input(&mut self, omit_history_entry: bool, cx: &mut ModelContext<Picker<Self>>) {
         let Some((task_source_kind, task)) = self.spawn_oneshot() else {
             return;
         };
@@ -414,7 +414,7 @@ impl PickerDelegate for TasksModalDelegate {
             Vec::new()
         }
     }
-    fn render_footer(&self, cx: &mut ViewContext<Picker<Self>>) -> Option<gpui::AnyElement> {
+    fn render_footer(&self, cx: &mut ModelContext<Picker<Self>>) -> Option<gpui::AnyElement> {
         let is_recent_selected = self.divider_index >= Some(self.selected_index);
         let current_modifiers = cx.modifiers();
         let left_button = if self
@@ -960,7 +960,7 @@ mod tests {
     }
 
     fn emulate_task_schedule(
-        tasks_picker: View<Picker<TasksModalDelegate>>,
+        tasks_picker: Model<Picker<TasksModalDelegate>>,
         project: &Model<Project>,
         scheduled_task_label: &str,
         cx: &mut VisualTestContext,
@@ -991,9 +991,9 @@ mod tests {
     }
 
     fn open_spawn_tasks(
-        workspace: &View<Workspace>,
+        workspace: &Model<Workspace>,
         cx: &mut VisualTestContext,
-    ) -> View<Picker<TasksModalDelegate>> {
+    ) -> Model<Picker<TasksModalDelegate>> {
         cx.dispatch_action(Spawn::default());
         workspace.update(cx, |workspace, cx| {
             workspace
@@ -1005,12 +1005,15 @@ mod tests {
         })
     }
 
-    fn query(spawn_tasks: &View<Picker<TasksModalDelegate>>, cx: &mut VisualTestContext) -> String {
+    fn query(
+        spawn_tasks: &Model<Picker<TasksModalDelegate>>,
+        cx: &mut VisualTestContext,
+    ) -> String {
         spawn_tasks.update(cx, |spawn_tasks, cx| spawn_tasks.query(cx))
     }
 
     fn task_names(
-        spawn_tasks: &View<Picker<TasksModalDelegate>>,
+        spawn_tasks: &Model<Picker<TasksModalDelegate>>,
         cx: &mut VisualTestContext,
     ) -> Vec<String> {
         spawn_tasks.update(cx, |spawn_tasks, _| {

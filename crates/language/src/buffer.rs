@@ -25,7 +25,7 @@ use fs::MTime;
 use futures::channel::oneshot;
 use gpui::{
     AnyElement, AppContext, Context as _, EventEmitter, HighlightStyle, Model, ModelContext,
-    Pixels, Task, TaskLabel, WindowContext,
+    Pixels, Task, TaskLabel, Window,
 };
 use lsp::LanguageServerId;
 use parking_lot::Mutex;
@@ -541,8 +541,8 @@ pub struct ChunkRenderer {
     pub constrain_width: bool,
 }
 
-pub struct ChunkRendererContext<'a, 'b> {
-    pub context: &'a mut WindowContext<'b>,
+pub struct ChunkRendererContext<'a> {
+    pub context: &'a mut AppContext,
     pub max_width: Pixels,
 }
 
@@ -554,15 +554,15 @@ impl fmt::Debug for ChunkRenderer {
     }
 }
 
-impl<'a, 'b> Deref for ChunkRendererContext<'a, 'b> {
-    type Target = WindowContext<'b>;
+impl<'a> Deref for ChunkRendererContext<'a> {
+    type Target = AppContext;
 
     fn deref(&self) -> &Self::Target {
         self.context
     }
 }
 
-impl<'a, 'b> DerefMut for ChunkRendererContext<'a, 'b> {
+impl<'a> DerefMut for ChunkRendererContext<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.context
     }

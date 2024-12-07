@@ -1,7 +1,7 @@
 use std::{fs, path::Path};
 
 use anyhow::Context as _;
-use gpui::{Context, View, ViewContext, VisualContext, WindowContext};
+use gpui::{Context, ModelContext, View, VisualContext, WindowContext};
 use language::Language;
 use multi_buffer::MultiBuffer;
 use project::lsp_ext_command::ExpandMacro;
@@ -18,7 +18,7 @@ fn is_rust_language(language: &Language) -> bool {
     language.name() == "Rust".into()
 }
 
-pub fn apply_related_actions(editor: &View<Editor>, cx: &mut WindowContext) {
+pub fn apply_related_actions(editor: &Model<Editor>, cx: &mut WindowContext) {
     if editor
         .update(cx, |e, cx| {
             find_specific_language_server_in_selection(e, cx, is_rust_language, RUST_ANALYZER_NAME)
@@ -33,7 +33,7 @@ pub fn apply_related_actions(editor: &View<Editor>, cx: &mut WindowContext) {
 pub fn expand_macro_recursively(
     editor: &mut Editor,
     _: &ExpandMacroRecursively,
-    cx: &mut ViewContext<'_, Editor>,
+    cx: &mut ModelContext<'_, Editor>,
 ) {
     if editor.selections.count() == 0 {
         return;
@@ -87,7 +87,9 @@ pub fn expand_macro_recursively(
             });
             workspace.add_item_to_active_pane(
                 Box::new(
-                    cx.new_view(|cx| Editor::for_multibuffer(multibuffer, Some(project), true, cx)),
+                    cx.new_model(|cx| {
+                        Editor::for_multibuffer(multibuffer, Some(project), true, cx)
+                    }),
                 ),
                 None,
                 true,
@@ -98,7 +100,7 @@ pub fn expand_macro_recursively(
     .detach_and_log_err(cx);
 }
 
-pub fn open_docs(editor: &mut Editor, _: &OpenDocs, cx: &mut ViewContext<'_, Editor>) {
+pub fn open_docs(editor: &mut Editor, _: &OpenDocs, cx: &mut ModelContext<'_, Editor>) {
     if editor.selections.count() == 0 {
         return;
     }

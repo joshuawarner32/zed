@@ -6,7 +6,7 @@ use client::{
 use fuzzy::{match_strings, StringMatchCandidate};
 use gpui::{
     actions, anchored, deferred, div, AppContext, ClipboardItem, DismissEvent, EventEmitter,
-    FocusableView, Model, ParentElement, Render, Styled, Subscription, Task, View, ViewContext,
+    FocusableView, Model, ModelContext, ParentElement, Render, Styled, Subscription, Task, View,
     VisualContext, WeakView,
 };
 use picker::{Picker, PickerDelegate};
@@ -26,7 +26,7 @@ actions!(
 );
 
 pub struct ChannelModal {
-    picker: View<Picker<ChannelModalDelegate>>,
+    picker: Model<Picker<ChannelModalDelegate>>,
     channel_store: Model<ChannelStore>,
     channel_id: ChannelId,
 }
@@ -37,11 +37,11 @@ impl ChannelModal {
         channel_store: Model<ChannelStore>,
         channel_id: ChannelId,
         mode: Mode,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Self {
         cx.observe(&channel_store, |_, _, cx| cx.notify()).detach();
         let channel_modal = cx.view().downgrade();
-        let picker = cx.new_view(|cx| {
+        let picker = cx.new_model(|cx| {
             Picker::uniform_list(
                 ChannelModalDelegate {
                     channel_modal,
@@ -69,7 +69,7 @@ impl ChannelModal {
         }
     }
 
-    fn toggle_mode(&mut self, _: &ToggleMode, cx: &mut ViewContext<Self>) {
+    fn toggle_mode(&mut self, _: &ToggleMode, cx: &mut ModelContext<Self>) {
         let mode = match self.picker.read(cx).delegate.mode {
             Mode::ManageMembers => Mode::InviteMembers,
             Mode::InviteMembers => Mode::ManageMembers,
@@ -77,7 +77,7 @@ impl ChannelModal {
         self.set_mode(mode, cx);
     }
 
-    fn set_mode(&mut self, mode: Mode, cx: &mut ViewContext<Self>) {
+    fn set_mode(&mut self, mode: Mode, cx: &mut ModelContext<Self>) {
         self.picker.update(cx, |picker, cx| {
             let delegate = &mut picker.delegate;
             delegate.mode = mode;
@@ -89,7 +89,7 @@ impl ChannelModal {
         cx.notify()
     }
 
-    fn set_channel_visibility(&mut self, selection: &Selection, cx: &mut ViewContext<Self>) {
+    fn set_channel_visibility(&mut self, selection: &Selection, cx: &mut ModelContext<Self>) {
         self.channel_store.update(cx, |channel_store, cx| {
             channel_store
                 .set_channel_visibility(
@@ -105,7 +105,7 @@ impl ChannelModal {
         });
     }
 
-    fn dismiss(&mut self, _: &menu::Cancel, cx: &mut ViewContext<Self>) {
+    fn dismiss(&mut self, _: &menu::Cancel, cx: &mut ModelContext<Self>) {
         cx.emit(DismissEvent);
     }
 }
@@ -120,7 +120,7 @@ impl FocusableView for ChannelModal {
 }
 
 impl Render for ChannelModal {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let channel_store = self.channel_store.read(cx);
         let Some(channel) = channel_store.channel_for_id(self.channel_id) else {
             return div();
@@ -229,7 +229,7 @@ pub enum Mode {
 }
 
 pub struct ChannelModalDelegate {
-    channel_modal: WeakView<ChannelModal>,
+    channel_modal: WeakModel<ChannelModal>,
     matching_users: Vec<Arc<User>>,
     matching_member_indices: Vec<usize>,
     user_store: Model<UserStore>,
@@ -240,7 +240,7 @@ pub struct ChannelModalDelegate {
     match_candidates: Vec<StringMatchCandidate>,
     members: Vec<ChannelMembership>,
     has_all_members: bool,
-    context_menu: Option<(View<ContextMenu>, Subscription)>,
+    context_menu: Option<(Model<ContextMenu>, Subscription)>,
 }
 
 impl PickerDelegate for ChannelModalDelegate {
@@ -261,11 +261,11 @@ impl PickerDelegate for ChannelModalDelegate {
         self.selected_index
     }
 
-    fn set_selected_index(&mut self, ix: usize, _: &mut ViewContext<Picker<Self>>) {
+    fn set_selected_index(&mut self, ix: usize, _: &mut ModelContext<Picker<Self>>) {
         self.selected_index = ix;
     }
 
-    fn update_matches(&mut self, query: String, cx: &mut ViewContext<Picker<Self>>) -> Task<()> {
+    fn update_matches(&mut self, query: String, cx: &mut ModelContext<Picker<Self>>) -> Task<()> {
         match self.mode {
             Mode::ManageMembers => {
                 if self.has_all_members {
@@ -342,7 +342,7 @@ impl PickerDelegate for ChannelModalDelegate {
         }
     }
 
-    fn confirm(&mut self, _: bool, cx: &mut ViewContext<Picker<Self>>) {
+    fn confirm(&mut self, _: bool, cx: &mut ModelContext<Picker<Self>>) {
         if let Some(selected_user) = self.user_at_index(self.selected_index) {
             if Some(selected_user.id) == self.user_store.read(cx).current_user().map(|user| user.id)
             {
@@ -361,7 +361,7 @@ impl PickerDelegate for ChannelModalDelegate {
         }
     }
 
-    fn dismissed(&mut self, cx: &mut ViewContext<Picker<Self>>) {
+    fn dismissed(&mut self, cx: &mut ModelContext<Picker<Self>>) {
         if self.context_menu.is_none() {
             self.channel_modal
                 .update(cx, |_, cx| {
@@ -375,7 +375,7 @@ impl PickerDelegate for ChannelModalDelegate {
         &self,
         ix: usize,
         selected: bool,
-        cx: &mut ViewContext<Picker<Self>>,
+        cx: &mut ModelContext<Picker<Self>>,
     ) -> Option<Self::ListItem> {
         let user = self.user_at_index(ix)?;
         let membership = self.member_at_index(ix);
@@ -474,7 +474,7 @@ impl ChannelModalDelegate {
         &mut self,
         user_id: UserId,
         new_role: ChannelRole,
-        cx: &mut ViewContext<Picker<Self>>,
+        cx: &mut ModelContext<Picker<Self>>,
     ) -> Option<()> {
         let update = self.channel_store.update(cx, |store, cx| {
             store.set_member_role(self.channel_id, user_id, new_role, cx)
@@ -494,7 +494,11 @@ impl ChannelModalDelegate {
         Some(())
     }
 
-    fn remove_member(&mut self, user_id: UserId, cx: &mut ViewContext<Picker<Self>>) -> Option<()> {
+    fn remove_member(
+        &mut self,
+        user_id: UserId,
+        cx: &mut ModelContext<Picker<Self>>,
+    ) -> Option<()> {
         let update = self.channel_store.update(cx, |store, cx| {
             store.remove_member(self.channel_id, user_id, cx)
         });
@@ -526,7 +530,7 @@ impl ChannelModalDelegate {
         Some(())
     }
 
-    fn invite_member(&mut self, user: Arc<User>, cx: &mut ViewContext<Picker<Self>>) {
+    fn invite_member(&mut self, user: Arc<User>, cx: &mut ModelContext<Picker<Self>>) {
         let invite_member = self.channel_store.update(cx, |store, cx| {
             store.invite_member(self.channel_id, user.id, ChannelRole::Member, cx)
         });
@@ -551,13 +555,13 @@ impl ChannelModalDelegate {
         .detach_and_prompt_err("Failed to invite member", cx, |_, _| None);
     }
 
-    fn show_context_menu(&mut self, ix: usize, cx: &mut ViewContext<Picker<Self>>) {
+    fn show_context_menu(&mut self, ix: usize, cx: &mut ModelContext<Picker<Self>>) {
         let Some(membership) = self.member_at_index(ix) else {
             return;
         };
         let user_id = membership.user.id;
         let picker = cx.view().clone();
-        let context_menu = ContextMenu::build(cx, |mut menu, _cx| {
+        let context_menu = ContextMenu::build(window, cx, |mut menu, _window, _cx| {
             let role = membership.role;
 
             if role == ChannelRole::Admin || role == ChannelRole::Member {
@@ -610,7 +614,7 @@ impl ChannelModalDelegate {
             });
             menu
         });
-        cx.focus_view(&context_menu);
+        cx.focus_view(&context_menu, window);
         let subscription = cx.subscribe(&context_menu, |picker, _, _: &DismissEvent, cx| {
             picker.delegate.context_menu = None;
             picker.focus(cx);

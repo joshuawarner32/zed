@@ -1,6 +1,6 @@
 use collections::HashMap;
 use editor::{display_map::ToDisplayPoint, scroll::Autoscroll};
-use gpui::ViewContext;
+use gpui::ModelContext;
 use language::{Bias, Point, SelectionGoal};
 use multi_buffer::MultiBufferRow;
 
@@ -24,7 +24,7 @@ impl Vim {
         motion: Motion,
         times: Option<usize>,
         mode: CaseTarget,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.stop_recording(cx);
         self.update_editor(cx, |_, editor, cx| {
@@ -62,7 +62,7 @@ impl Vim {
         object: Object,
         around: bool,
         mode: CaseTarget,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.stop_recording(cx);
         self.update_editor(cx, |_, editor, cx| {
@@ -94,7 +94,7 @@ impl Vim {
         });
     }
 
-    pub fn change_case(&mut self, _: &ChangeCase, cx: &mut ViewContext<Self>) {
+    pub fn change_case(&mut self, _: &ChangeCase, cx: &mut ModelContext<Self>) {
         self.manipulate_text(cx, |c| {
             if c.is_lowercase() {
                 c.to_uppercase().collect::<Vec<char>>()
@@ -104,15 +104,15 @@ impl Vim {
         })
     }
 
-    pub fn convert_to_upper_case(&mut self, _: &ConvertToUpperCase, cx: &mut ViewContext<Self>) {
+    pub fn convert_to_upper_case(&mut self, _: &ConvertToUpperCase, cx: &mut ModelContext<Self>) {
         self.manipulate_text(cx, |c| c.to_uppercase().collect::<Vec<char>>())
     }
 
-    pub fn convert_to_lower_case(&mut self, _: &ConvertToLowerCase, cx: &mut ViewContext<Self>) {
+    pub fn convert_to_lower_case(&mut self, _: &ConvertToLowerCase, cx: &mut ModelContext<Self>) {
         self.manipulate_text(cx, |c| c.to_lowercase().collect::<Vec<char>>())
     }
 
-    fn manipulate_text<F>(&mut self, cx: &mut ViewContext<Self>, transform: F)
+    fn manipulate_text<F>(&mut self, cx: &mut ModelContext<Self>, transform: F)
     where
         F: Fn(char) -> Vec<char> + Copy,
     {

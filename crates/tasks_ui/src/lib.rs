@@ -1,6 +1,6 @@
 use ::settings::Settings;
 use editor::{tasks::task_context, Editor};
-use gpui::{AppContext, Task as AsyncTask, ViewContext, WindowContext};
+use gpui::{AppContext, ModelContext, Task as AsyncTask, WindowContext};
 use modal::TasksModal;
 use project::{Location, WorktreeId};
 use task::TaskId;
@@ -14,8 +14,8 @@ pub use modal::{Rerun, Spawn};
 
 pub fn init(cx: &mut AppContext) {
     settings::TaskSettings::register(cx);
-    cx.observe_new_views(
-        |workspace: &mut Workspace, _: &mut ViewContext<Workspace>| {
+    cx.observe_new_models(
+        |workspace: &mut Workspace, _: &mut ModelContext<Workspace>| {
             workspace
                 .register_action(spawn_task_or_modal)
                 .register_action(move |workspace, action: &modal::Rerun, cx| {
@@ -87,14 +87,18 @@ pub fn init(cx: &mut AppContext) {
     .detach();
 }
 
-fn spawn_task_or_modal(workspace: &mut Workspace, action: &Spawn, cx: &mut ViewContext<Workspace>) {
+fn spawn_task_or_modal(
+    workspace: &mut Workspace,
+    action: &Spawn,
+    cx: &mut ModelContext<Workspace>,
+) {
     match &action.task_name {
         Some(name) => spawn_task_with_name(name.clone(), cx).detach_and_log_err(cx),
         None => toggle_modal(workspace, cx).detach(),
     }
 }
 
-fn toggle_modal(workspace: &mut Workspace, cx: &mut ViewContext<'_, Workspace>) -> AsyncTask<()> {
+fn toggle_modal(workspace: &mut Workspace, cx: &mut ModelContext<'_, Workspace>) -> AsyncTask<()> {
     let task_store = workspace.project().read(cx).task_store().clone();
     let workspace_handle = workspace.weak_handle();
     let can_open_modal = workspace.project().update(cx, |project, cx| {
@@ -119,7 +123,7 @@ fn toggle_modal(workspace: &mut Workspace, cx: &mut ViewContext<'_, Workspace>) 
 
 fn spawn_task_with_name(
     name: String,
-    cx: &mut ViewContext<Workspace>,
+    cx: &mut ModelContext<Workspace>,
 ) -> AsyncTask<anyhow::Result<()>> {
     cx.spawn(|workspace, mut cx| async move {
         let context_task =
@@ -304,7 +308,7 @@ mod tests {
         buffer1.update(cx, |this, cx| {
             this.set_language(Some(typescript_language), cx)
         });
-        let editor1 = cx.new_view(|cx| Editor::for_buffer(buffer1, Some(project.clone()), cx));
+        let editor1 = cx.new_model(|cx| Editor::for_buffer(buffer1, Some(project.clone()), cx));
         let buffer2 = workspace
             .update(cx, |this, cx| {
                 this.project().update(cx, |this, cx| {
@@ -314,7 +318,7 @@ mod tests {
             .await
             .unwrap();
         buffer2.update(cx, |this, cx| this.set_language(Some(rust_language), cx));
-        let editor2 = cx.new_view(|cx| Editor::for_buffer(buffer2, Some(project), cx));
+        let editor2 = cx.new_model(|cx| Editor::for_buffer(buffer2, Some(project), cx));
 
         let first_context = workspace
             .update(cx, |workspace, cx| {

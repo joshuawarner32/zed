@@ -229,7 +229,7 @@ impl LanguageModelProvider for AnthropicLanguageModelProvider {
     }
 
     fn configuration_view(&self, cx: &mut WindowContext) -> AnyView {
-        cx.new_view(|cx| ConfigurationView::new(self.state.clone(), cx))
+        cx.new_model(|cx| ConfigurationView::new(self.state.clone(), cx))
             .into()
     }
 
@@ -559,7 +559,7 @@ pub fn map_to_language_model_completion_events(
 }
 
 struct ConfigurationView {
-    api_key_editor: View<Editor>,
+    api_key_editor: Model<Editor>,
     state: gpui::Model<State>,
     load_credentials_task: Option<Task<()>>,
 }
@@ -567,7 +567,7 @@ struct ConfigurationView {
 impl ConfigurationView {
     const PLACEHOLDER_TEXT: &'static str = "sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
-    fn new(state: gpui::Model<State>, cx: &mut ViewContext<Self>) -> Self {
+    fn new(state: gpui::Model<State>, cx: &mut ModelContext<Self>) -> Self {
         cx.observe(&state, |_, _, cx| {
             cx.notify();
         })
@@ -592,7 +592,7 @@ impl ConfigurationView {
         }));
 
         Self {
-            api_key_editor: cx.new_view(|cx| {
+            api_key_editor: cx.new_model(|cx| {
                 let mut editor = Editor::single_line(cx);
                 editor.set_placeholder_text(Self::PLACEHOLDER_TEXT, cx);
                 editor
@@ -602,7 +602,7 @@ impl ConfigurationView {
         }
     }
 
-    fn save_api_key(&mut self, _: &menu::Confirm, cx: &mut ViewContext<Self>) {
+    fn save_api_key(&mut self, _: &menu::Confirm, cx: &mut ModelContext<Self>) {
         let api_key = self.api_key_editor.read(cx).text(cx);
         if api_key.is_empty() {
             return;
@@ -619,7 +619,7 @@ impl ConfigurationView {
         cx.notify();
     }
 
-    fn reset_api_key(&mut self, cx: &mut ViewContext<Self>) {
+    fn reset_api_key(&mut self, cx: &mut ModelContext<Self>) {
         self.api_key_editor
             .update(cx, |editor, cx| editor.set_text("", cx));
 
@@ -634,7 +634,7 @@ impl ConfigurationView {
         cx.notify();
     }
 
-    fn render_api_key_editor(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render_api_key_editor(&self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let settings = ThemeSettings::get_global(cx);
         let text_style = TextStyle {
             color: cx.theme().colors().text,
@@ -662,13 +662,13 @@ impl ConfigurationView {
         )
     }
 
-    fn should_render_editor(&self, cx: &mut ViewContext<Self>) -> bool {
+    fn should_render_editor(&self, cx: &mut ModelContext<Self>) -> bool {
         !self.state.read(cx).is_authenticated()
     }
 }
 
 impl Render for ConfigurationView {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         const ANTHROPIC_CONSOLE_URL: &str = "https://console.anthropic.com/settings/keys";
         const INSTRUCTIONS: [&str; 3] = [
             "To use Zed's assistant with Anthropic, you need to add an API key. Follow these steps:",

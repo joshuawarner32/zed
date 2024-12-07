@@ -12,7 +12,7 @@ use futures::future::try_join_all;
 use git::repository::GitFileStatus;
 use gpui::{
     point, AnyElement, AppContext, AsyncWindowContext, Context, Entity, EntityId, EventEmitter,
-    IntoElement, Model, ParentElement, Pixels, SharedString, Styled, Task, View, ViewContext,
+    IntoElement, Model, ParentElement, Pixels, SharedString, Styled, Task, View, ModelContext,
     VisualContext, WeakView, WindowContext,
 };
 use language::{
@@ -58,11 +58,11 @@ impl FollowableItem for Editor {
     }
 
     fn from_state_proto(
-        workspace: View<Workspace>,
+        workspace: Model<Workspace>,
         remote_id: ViewId,
         state: &mut Option<proto::view::Variant>,
         cx: &mut WindowContext,
-    ) -> Option<Task<Result<View<Self>>>> {
+    ) -> Option<Task<Result<Model<Self>>>> {
         let project = workspace.read(cx).project().to_owned();
         let Some(proto::view::Variant::Editor(_)) = state else {
             return None;
@@ -124,7 +124,7 @@ impl FollowableItem for Editor {
                     multibuffer
                 });
 
-                cx.new_view(|cx| {
+                cx.new_model(|cx| {
                     let mut editor =
                         Editor::for_multibuffer(multibuffer, Some(project.clone()), true, cx);
                     editor.remote_id = Some(remote_id);
@@ -151,7 +151,7 @@ impl FollowableItem for Editor {
         }))
     }
 
-    fn set_leader_peer_id(&mut self, leader_peer_id: Option<PeerId>, cx: &mut ViewContext<Self>) {
+    fn set_leader_peer_id(&mut self, leader_peer_id: Option<PeerId>, cx: &mut ModelContext<Self>) {
         self.leader_peer_id = leader_peer_id;
         if self.leader_peer_id.is_some() {
             self.buffer.update(cx, |buffer, cx| {
@@ -304,7 +304,7 @@ impl FollowableItem for Editor {
         &mut self,
         project: &Model<Project>,
         message: update_view::Variant,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Task<Result<()>> {
         let update_view::Variant::Editor(message) = message;
         let project = project.clone();
@@ -329,7 +329,7 @@ impl FollowableItem for Editor {
 }
 
 async fn update_editor_from_message(
-    this: WeakView<Editor>,
+    this: WeakModel<Editor>,
     project: Model<Project>,
     message: proto::update_view::Editor,
     cx: &mut AsyncWindowContext,
@@ -536,7 +536,7 @@ fn deserialize_anchor(buffer: &MultiBufferSnapshot, anchor: proto::EditorAnchor)
 impl Item for Editor {
     type Event = EditorEvent;
 
-    fn navigate(&mut self, data: Box<dyn std::any::Any>, cx: &mut ViewContext<Self>) -> bool {
+    fn navigate(&mut self, data: Box<dyn std::any::Any>, cx: &mut ModelContext<Self>) -> bool {
         if let Ok(data) = data.downcast::<NavigationData>() {
             let newest_selection = self.selections.newest::<Point>(cx);
             let buffer = self.buffer.read(cx).read(cx);
@@ -679,30 +679,30 @@ impl Item for Editor {
     fn clone_on_split(
         &self,
         _workspace_id: Option<WorkspaceId>,
-        cx: &mut ViewContext<Self>,
-    ) -> Option<View<Editor>>
+        cx: &mut ModelContext<Self>,
+    ) -> Option<Model<Editor>>
     where
         Self: Sized,
     {
-        Some(cx.new_view(|cx| self.clone(cx)))
+        Some(cx.new_model(|cx| self.clone(cx)))
     }
 
-    fn set_nav_history(&mut self, history: ItemNavHistory, _: &mut ViewContext<Self>) {
+    fn set_nav_history(&mut self, history: ItemNavHistory, _: &mut ModelContext<Self>) {
         self.nav_history = Some(history);
     }
 
-    fn discarded(&self, _project: Model<Project>, cx: &mut ViewContext<Self>) {
+    fn discarded(&self, _project: Model<Project>, cx: &mut ModelContext<Self>) {
         for buffer in self.buffer().clone().read(cx).all_buffers() {
             buffer.update(cx, |buffer, cx| buffer.discarded(cx))
         }
     }
 
-    fn deactivated(&mut self, cx: &mut ViewContext<Self>) {
+    fn deactivated(&mut self, cx: &mut ModelContext<Self>) {
         let selection = self.selections.newest_anchor();
         self.push_to_nav_history(selection.head(), None, cx);
     }
 
-    fn workspace_deactivated(&mut self, cx: &mut ViewContext<Self>) {
+    fn workspace_deactivated(&mut self, cx: &mut ModelContext<Self>) {
         self.hide_hovered_link(cx);
     }
 
@@ -731,7 +731,7 @@ impl Item for Editor {
         &mut self,
         format: bool,
         project: Model<Project>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Task<Result<()>> {
         self.report_editor_event("save", None, cx);
         let buffers = self.buffer().clone().read(cx).all_buffers();
@@ -793,7 +793,7 @@ impl Item for Editor {
         &mut self,
         project: Model<Project>,
         path: ProjectPath,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Task<Result<()>> {
         let buffer = self
             .buffer()
@@ -810,7 +810,7 @@ impl Item for Editor {
         project.update(cx, |project, cx| project.save_buffer_as(buffer, path, cx))
     }
 
-    fn reload(&mut self, project: Model<Project>, cx: &mut ViewContext<Self>) -> Task<Result<()>> {
+    fn reload(&mut self, project: Model<Project>, cx: &mut ModelContext<Self>) -> Task<Result<()>> {
         let buffer = self.buffer().clone();
         let buffers = self.buffer.read(cx).all_buffers();
         let reload_buffers =
@@ -833,7 +833,7 @@ impl Item for Editor {
         })
     }
 
-    fn as_searchable(&self, handle: &View<Self>) -> Option<Box<dyn SearchableItemHandle>> {
+    fn as_searchable(&self, handle: &Model<Self>) -> Option<Box<dyn SearchableItemHandle>> {
         Some(Box::new(handle.clone()))
     }
 
@@ -893,7 +893,7 @@ impl Item for Editor {
         Some(breadcrumbs)
     }
 
-    fn added_to_workspace(&mut self, workspace: &mut Workspace, _: &mut ViewContext<Self>) {
+    fn added_to_workspace(&mut self, workspace: &mut Workspace, _: &mut ModelContext<Self>) {
         self.workspace = Some((workspace.weak_handle(), workspace.database_id()));
     }
 
@@ -951,11 +951,11 @@ impl SerializableItem for Editor {
 
     fn deserialize(
         project: Model<Project>,
-        workspace: WeakView<Workspace>,
+        workspace: WeakModel<Workspace>,
         workspace_id: workspace::WorkspaceId,
         item_id: ItemId,
-        cx: &mut ViewContext<Pane>,
-    ) -> Task<Result<View<Self>>> {
+        cx: &mut ModelContext<Pane>,
+    ) -> Task<Result<Model<Self>>> {
         let serialized_editor = match DB
             .get_serialized_editor(item_id, workspace_id)
             .context("Failed to query editor state")
@@ -1020,7 +1020,7 @@ impl SerializableItem for Editor {
                     })?;
 
                     pane.update(&mut cx, |_, cx| {
-                        cx.new_view(|cx| {
+                        cx.new_model(|cx| {
                             let mut editor = Editor::for_buffer(buffer, Some(project), cx);
 
                             editor.read_scroll_position_from_db(item_id, workspace_id, cx);
@@ -1074,7 +1074,7 @@ impl SerializableItem for Editor {
                             }
 
                             pane.update(&mut cx, |_, cx| {
-                                cx.new_view(|cx| {
+                                cx.new_model(|cx| {
                                     let mut editor = Editor::for_buffer(buffer, Some(project), cx);
 
                                     editor.read_scroll_position_from_db(item_id, workspace_id, cx);
@@ -1110,7 +1110,7 @@ impl SerializableItem for Editor {
         workspace: &mut Workspace,
         item_id: ItemId,
         closing: bool,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Option<Task<Result<()>>> {
         let mut serialize_dirty_buffers = self.serialize_dirty_buffers;
 
@@ -1190,7 +1190,7 @@ impl ProjectItem for Editor {
     fn for_project_item(
         project: Model<Project>,
         buffer: Model<Buffer>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Self {
         Self::for_buffer(buffer, Some(project), cx)
     }
@@ -1210,7 +1210,7 @@ impl SearchableItem for Editor {
             })
     }
 
-    fn clear_matches(&mut self, cx: &mut ViewContext<Self>) {
+    fn clear_matches(&mut self, cx: &mut ModelContext<Self>) {
         if self
             .clear_background_highlights::<BufferSearchHighlights>(cx)
             .is_some()
@@ -1219,7 +1219,7 @@ impl SearchableItem for Editor {
         }
     }
 
-    fn update_matches(&mut self, matches: &[Range<Anchor>], cx: &mut ViewContext<Self>) {
+    fn update_matches(&mut self, matches: &[Range<Anchor>], cx: &mut ModelContext<Self>) {
         let existing_range = self
             .background_highlights
             .get(&TypeId::of::<BufferSearchHighlights>())
@@ -1239,7 +1239,7 @@ impl SearchableItem for Editor {
         self.has_background_highlights::<SearchWithinRange>()
     }
 
-    fn toggle_filtered_search_ranges(&mut self, enabled: bool, cx: &mut ViewContext<Self>) {
+    fn toggle_filtered_search_ranges(&mut self, enabled: bool, cx: &mut ModelContext<Self>) {
         if self.has_filtered_search_ranges() {
             self.previous_search_ranges = self
                 .clear_background_highlights::<SearchWithinRange>(cx)
@@ -1258,7 +1258,7 @@ impl SearchableItem for Editor {
         }
     }
 
-    fn query_suggestion(&mut self, cx: &mut ViewContext<Self>) -> String {
+    fn query_suggestion(&mut self, cx: &mut ModelContext<Self>) -> String {
         let setting = EditorSettings::get_global(cx).seed_search_query_from_cursor;
         let snapshot = &self.snapshot(cx).buffer_snapshot;
         let selection = self.selections.newest::<usize>(cx);
@@ -1293,7 +1293,7 @@ impl SearchableItem for Editor {
         &mut self,
         index: usize,
         matches: &[Range<Anchor>],
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.unfold_ranges(&[matches[index].clone()], false, true, cx);
         let range = self.range_for_match(&matches[index]);
@@ -1302,7 +1302,7 @@ impl SearchableItem for Editor {
         })
     }
 
-    fn select_matches(&mut self, matches: &[Self::Match], cx: &mut ViewContext<Self>) {
+    fn select_matches(&mut self, matches: &[Self::Match], cx: &mut ModelContext<Self>) {
         self.unfold_ranges(matches, false, false, cx);
         let mut ranges = Vec::new();
         for m in matches {
@@ -1314,7 +1314,7 @@ impl SearchableItem for Editor {
         &mut self,
         identifier: &Self::Match,
         query: &SearchQuery,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         let text = self.buffer.read(cx);
         let text = text.snapshot(cx);
@@ -1336,7 +1336,7 @@ impl SearchableItem for Editor {
         &mut self,
         matches: &mut dyn Iterator<Item = &Self::Match>,
         query: &SearchQuery,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         let text = self.buffer.read(cx);
         let text = text.snapshot(cx);
@@ -1367,7 +1367,7 @@ impl SearchableItem for Editor {
         current_index: usize,
         direction: Direction,
         count: usize,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> usize {
         let buffer = self.buffer().read(cx).snapshot(cx);
         let current_index_position = if self.selections.disjoint_anchors().len() == 1 {
@@ -1413,7 +1413,7 @@ impl SearchableItem for Editor {
     fn find_matches(
         &mut self,
         query: Arc<project::search::SearchQuery>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Task<Vec<Range<Anchor>>> {
         let buffer = self.buffer().read(cx).snapshot(cx);
         let search_within_ranges = self
@@ -1486,7 +1486,7 @@ impl SearchableItem for Editor {
     fn active_match_index(
         &mut self,
         matches: &[Range<Anchor>],
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) -> Option<usize> {
         active_match_index(
             matches,
@@ -1495,7 +1495,7 @@ impl SearchableItem for Editor {
         )
     }
 
-    fn search_bar_visibility_changed(&mut self, _visible: bool, _cx: &mut ViewContext<Self>) {
+    fn search_bar_visibility_changed(&mut self, _visible: bool, _cx: &mut ModelContext<Self>) {
         self.expect_bounds_change = self.last_bounds;
     }
 }
@@ -1639,10 +1639,10 @@ mod tests {
     async fn deserialize_editor(
         item_id: ItemId,
         workspace_id: WorkspaceId,
-        workspace: View<Workspace>,
+        workspace: Model<Workspace>,
         project: Model<Project>,
         cx: &mut VisualTestContext,
-    ) -> View<Editor> {
+    ) -> Model<Editor> {
         workspace
             .update(cx, |workspace, cx| {
                 let pane = workspace.active_pane();

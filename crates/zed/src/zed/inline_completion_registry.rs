@@ -4,17 +4,17 @@ use client::telemetry::Telemetry;
 use collections::HashMap;
 use copilot::{Copilot, CopilotCompletionProvider};
 use editor::{Editor, EditorMode};
-use gpui::{AnyWindowHandle, AppContext, Context, ViewContext, WeakView};
+use gpui::{AnyWindowHandle, AppContext, Context, ModelContext, WeakView};
 use language::language_settings::all_language_settings;
 use settings::SettingsStore;
 use supermaven::{Supermaven, SupermavenCompletionProvider};
 
 pub fn init(telemetry: Arc<Telemetry>, cx: &mut AppContext) {
-    let editors: Rc<RefCell<HashMap<WeakView<Editor>, AnyWindowHandle>>> = Rc::default();
-    cx.observe_new_views({
+    let editors: Rc<RefCell<HashMap<WeakModel<Editor>, AnyWindowHandle>>> = Rc::default();
+    cx.observe_new_models({
         let editors = editors.clone();
         let telemetry = telemetry.clone();
-        move |editor: &mut Editor, cx: &mut ViewContext<Editor>| {
+        move |editor: &mut Editor, cx: &mut ModelContext<Editor>| {
             if editor.mode() != EditorMode::Full {
                 return;
             }
@@ -64,27 +64,27 @@ pub fn init(telemetry: Arc<Telemetry>, cx: &mut AppContext) {
     .detach();
 }
 
-fn register_backward_compatible_actions(editor: &mut Editor, cx: &ViewContext<Editor>) {
+fn register_backward_compatible_actions(editor: &mut Editor, cx: &ModelContext<Editor>) {
     // We renamed some of these actions to not be copilot-specific, but that
     // would have not been backwards-compatible. So here we are re-registering
     // the actions with the old names to not break people's keymaps.
     editor
         .register_action(cx.listener(
-            |editor, _: &copilot::Suggest, cx: &mut ViewContext<Editor>| {
+            |editor, _: &copilot::Suggest, cx: &mut ModelContext<Editor>| {
                 editor.show_inline_completion(&Default::default(), cx);
             },
         ))
         .detach();
     editor
         .register_action(cx.listener(
-            |editor, _: &copilot::NextSuggestion, cx: &mut ViewContext<Editor>| {
+            |editor, _: &copilot::NextSuggestion, cx: &mut ModelContext<Editor>| {
                 editor.next_inline_completion(&Default::default(), cx);
             },
         ))
         .detach();
     editor
         .register_action(cx.listener(
-            |editor, _: &copilot::PreviousSuggestion, cx: &mut ViewContext<Editor>| {
+            |editor, _: &copilot::PreviousSuggestion, cx: &mut ModelContext<Editor>| {
                 editor.previous_inline_completion(&Default::default(), cx);
             },
         ))
@@ -93,7 +93,7 @@ fn register_backward_compatible_actions(editor: &mut Editor, cx: &ViewContext<Ed
         .register_action(cx.listener(
             |editor,
              _: &editor::actions::AcceptPartialCopilotSuggestion,
-             cx: &mut ViewContext<Editor>| {
+             cx: &mut ModelContext<Editor>| {
                 editor.accept_partial_inline_completion(&Default::default(), cx);
             },
         ))
@@ -104,7 +104,7 @@ fn assign_inline_completion_provider(
     editor: &mut Editor,
     provider: language::language_settings::InlineCompletionProvider,
     telemetry: &Arc<Telemetry>,
-    cx: &mut ViewContext<Editor>,
+    cx: &mut ModelContext<Editor>,
 ) {
     match provider {
         language::language_settings::InlineCompletionProvider::None => {}

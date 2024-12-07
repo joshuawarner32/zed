@@ -10,7 +10,7 @@ pub mod fake_provider;
 use anyhow::Result;
 use futures::FutureExt;
 use futures::{future::BoxFuture, stream::BoxStream, StreamExt, TryStreamExt as _};
-use gpui::{AnyElement, AnyView, AppContext, AsyncAppContext, SharedString, Task, WindowContext};
+use gpui::{AnyElement, AnyView, AppContext, AsyncAppContext, SharedString, Task, Window};
 pub use model::*;
 use proto::Plan;
 pub use rate_limiter::*;

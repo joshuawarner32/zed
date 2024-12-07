@@ -1,7 +1,7 @@
 use editor::Editor;
 use gpui::{
-    div, AsyncWindowContext, IntoElement, ParentElement, Render, Subscription, Task, View,
-    ViewContext, WeakModel, WeakView,
+    div, AsyncWindowContext, IntoElement, ModelContext, ParentElement, Render, Subscription, Task,
+    View, WeakModel, WeakView,
 };
 use language::{Buffer, BufferEvent, LanguageName, Toolchain};
 use project::{Project, WorktreeId};
@@ -13,13 +13,13 @@ use crate::ToolchainSelector;
 pub struct ActiveToolchain {
     active_toolchain: Option<Toolchain>,
     term: SharedString,
-    workspace: WeakView<Workspace>,
+    workspace: WeakModel<Workspace>,
     active_buffer: Option<(WorktreeId, WeakModel<Buffer>, Subscription)>,
     _update_toolchain_task: Task<Option<()>>,
 }
 
 impl ActiveToolchain {
-    pub fn new(workspace: &Workspace, cx: &mut ViewContext<Self>) -> Self {
+    pub fn new(workspace: &Workspace, cx: &mut ModelContext<Self>) -> Self {
         Self {
             active_toolchain: None,
             active_buffer: None,
@@ -29,7 +29,7 @@ impl ActiveToolchain {
             _update_toolchain_task: Self::spawn_tracker_task(cx),
         }
     }
-    fn spawn_tracker_task(cx: &mut ViewContext<Self>) -> Task<Option<()>> {
+    fn spawn_tracker_task(cx: &mut ModelContext<Self>) -> Task<Option<()>> {
         cx.spawn(|this, mut cx| async move {
             let active_file = this
                 .update(&mut cx, |this, _| {
@@ -72,7 +72,7 @@ impl ActiveToolchain {
         })
     }
 
-    fn update_lister(&mut self, editor: View<Editor>, cx: &mut ViewContext<Self>) {
+    fn update_lister(&mut self, editor: Model<Editor>, cx: &mut ModelContext<Self>) {
         let editor = editor.read(cx);
         if let Some((_, buffer, _)) = editor.active_excerpt(cx) {
             if let Some(worktree_id) = buffer.read(cx).file().map(|file| file.worktree_id(cx)) {
@@ -90,7 +90,7 @@ impl ActiveToolchain {
     }
 
     fn active_toolchain(
-        workspace: WeakView<Workspace>,
+        workspace: WeakModel<Workspace>,
         worktree_id: WorktreeId,
         language_name: LanguageName,
         cx: AsyncWindowContext,
@@ -143,7 +143,7 @@ impl ActiveToolchain {
 }
 
 impl Render for ActiveToolchain {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         div().when_some(self.active_toolchain.as_ref(), |el, active_toolchain| {
             let term = self.term.clone();
             el.child(
@@ -166,7 +166,7 @@ impl StatusItemView for ActiveToolchain {
     fn set_active_pane_item(
         &mut self,
         active_pane_item: Option<&dyn ItemHandle>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         if let Some(editor) = active_pane_item.and_then(|item| item.downcast::<Editor>()) {
             self.active_toolchain.take();

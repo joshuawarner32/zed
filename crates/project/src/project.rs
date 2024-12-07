@@ -42,7 +42,7 @@ use image_store::{ImageItemEvent, ImageStoreEvent};
 use git::{blame::Blame, repository::GitRepository};
 use gpui::{
     AnyModel, AppContext, AsyncAppContext, BorrowAppContext, Context as _, EventEmitter, Hsla,
-    Model, ModelContext, SharedString, Task, WeakModel, WindowContext,
+    Model, ModelContext, SharedString, Task, WeakModel, Window,
 };
 use itertools::Itertools;
 use language::{

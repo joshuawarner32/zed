@@ -10,7 +10,7 @@ use crate::SlashCommandWorkingSet;
 #[derive(IntoElement)]
 pub(super) struct SlashCommandSelector<T: PopoverTrigger> {
     working_set: Arc<SlashCommandWorkingSet>,
-    active_context_editor: WeakView<ContextEditor>,
+    active_context_editor: WeakModel<ContextEditor>,
     trigger: T,
 }
 
@@ -44,14 +44,14 @@ impl AsRef<str> for SlashCommandEntry {
 pub(crate) struct SlashCommandDelegate {
     all_commands: Vec<SlashCommandEntry>,
     filtered_commands: Vec<SlashCommandEntry>,
-    active_context_editor: WeakView<ContextEditor>,
+    active_context_editor: WeakModel<ContextEditor>,
     selected_index: usize,
 }
 
 impl<T: PopoverTrigger> SlashCommandSelector<T> {
     pub(crate) fn new(
         working_set: Arc<SlashCommandWorkingSet>,
-        active_context_editor: WeakView<ContextEditor>,
+        active_context_editor: WeakModel<ContextEditor>,
         trigger: T,
     ) -> Self {
         SlashCommandSelector {
@@ -73,7 +73,7 @@ impl PickerDelegate for SlashCommandDelegate {
         self.selected_index
     }
 
-    fn set_selected_index(&mut self, ix: usize, cx: &mut ViewContext<Picker<Self>>) {
+    fn set_selected_index(&mut self, ix: usize, cx: &mut ModelContext<Picker<Self>>) {
         self.selected_index = ix.min(self.filtered_commands.len().saturating_sub(1));
         cx.notify();
     }
@@ -82,7 +82,7 @@ impl PickerDelegate for SlashCommandDelegate {
         "Select a command...".into()
     }
 
-    fn update_matches(&mut self, query: String, cx: &mut ViewContext<Picker<Self>>) -> Task<()> {
+    fn update_matches(&mut self, query: String, cx: &mut ModelContext<Picker<Self>>) -> Task<()> {
         let all_commands = self.all_commands.clone();
         cx.spawn(|this, mut cx| async move {
             let filtered_commands = cx
@@ -139,7 +139,7 @@ impl PickerDelegate for SlashCommandDelegate {
         ret
     }
 
-    fn confirm(&mut self, _secondary: bool, cx: &mut ViewContext<Picker<Self>>) {
+    fn confirm(&mut self, _secondary: bool, cx: &mut ModelContext<Picker<Self>>) {
         if let Some(command) = self.filtered_commands.get(self.selected_index) {
             match command {
                 SlashCommandEntry::Info(info) => {
@@ -157,7 +157,7 @@ impl PickerDelegate for SlashCommandDelegate {
         }
     }
 
-    fn dismissed(&mut self, _cx: &mut ViewContext<Picker<Self>>) {}
+    fn dismissed(&mut self, _cx: &mut ModelContext<Picker<Self>>) {}
 
     fn editor_position(&self) -> PickerEditorPosition {
         PickerEditorPosition::End
@@ -167,7 +167,7 @@ impl PickerDelegate for SlashCommandDelegate {
         &self,
         ix: usize,
         selected: bool,
-        cx: &mut ViewContext<Picker<Self>>,
+        cx: &mut ModelContext<Picker<Self>>,
     ) -> Option<Self::ListItem> {
         let command_info = self.filtered_commands.get(ix)?;
 
@@ -296,7 +296,7 @@ impl<T: PopoverTrigger> RenderOnce for SlashCommandSelector<T> {
             selected_index: 0,
         };
 
-        let picker_view = cx.new_view(|cx| {
+        let picker_view = cx.new_model(|cx| {
             let picker = Picker::uniform_list(delegate, cx).max_height(Some(rems(20.).into()));
             picker
         });

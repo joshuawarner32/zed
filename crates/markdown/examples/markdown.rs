@@ -16,8 +16,8 @@ const MARKDOWN_EXAMPLE: &str = r#"
 Headings are created by adding one or more `#` symbols before your heading text. The number of `#` you use will determine the size of the heading.
 
 ```rust
-gpui::window::ViewContext
-impl<'a, V> ViewContext<'a, V>
+gpui::window::ModelContext
+impl<'a, V> ModelContext<'a, V>
 pub fn on_blur(&mut self, handle: &FocusHandle, listener: impl FnMut(&mut V, &mut iewContext<V>) + 'static) -> Subscription
 where
     // Bounds from impl:
@@ -113,7 +113,7 @@ pub fn main() {
 
         cx.activate(true);
         cx.open_window(WindowOptions::default(), |cx| {
-            cx.new_view(|cx| {
+            cx.new_model(|cx| {
                 let markdown_style = MarkdownStyle {
                     base_text_style: gpui::TextStyle {
                         font_family: "Zed Plex Sans".into(),
@@ -167,7 +167,7 @@ pub fn main() {
 }
 
 struct MarkdownExample {
-    markdown: View<Markdown>,
+    markdown: Model<Markdown>,
 }
 
 impl MarkdownExample {
@@ -178,13 +178,13 @@ impl MarkdownExample {
         cx: &mut WindowContext,
     ) -> Self {
         let markdown =
-            cx.new_view(|cx| Markdown::new(text, style, Some(language_registry), cx, None));
+            cx.new_model(|cx| Markdown::new(text, style, Some(language_registry), cx, None));
         Self { markdown }
     }
 }
 
 impl Render for MarkdownExample {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         div()
             .id("markdown-example")
             .debug_selector(|| "foo".into())

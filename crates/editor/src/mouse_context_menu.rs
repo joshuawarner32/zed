@@ -6,7 +6,7 @@ use crate::{
     SelectMode, ToDisplayPoint, ToggleCodeActions,
 };
 use gpui::prelude::FluentBuilder;
-use gpui::{DismissEvent, Pixels, Point, Subscription, View, ViewContext};
+use gpui::{DismissEvent, Pixels, Point, Subscription, View, ModelContext};
 use std::ops::Range;
 use text::PointUtf16;
 use workspace::OpenInTerminal;
@@ -27,7 +27,7 @@ pub enum MenuPosition {
 
 pub struct MouseContextMenu {
     pub(crate) position: MenuPosition,
-    pub(crate) context_menu: View<ui::ContextMenu>,
+    pub(crate) context_menu: Model<ui::ContextMenu>,
     _subscription: Subscription,
 }
 
@@ -45,8 +45,8 @@ impl MouseContextMenu {
         editor: &mut Editor,
         source: multi_buffer::Anchor,
         position: Point<Pixels>,
-        context_menu: View<ui::ContextMenu>,
-        cx: &mut ViewContext<Editor>,
+        context_menu: Model<ui::ContextMenu>,
+        cx: &mut ModelContext<Editor>,
     ) -> Option<Self> {
         let context_menu_focus = context_menu.focus_handle(cx);
         cx.focus(&context_menu_focus);
@@ -78,8 +78,8 @@ impl MouseContextMenu {
 
     pub(crate) fn pinned_to_screen(
         position: Point<Pixels>,
-        context_menu: View<ui::ContextMenu>,
-        cx: &mut ViewContext<Editor>,
+        context_menu: Model<ui::ContextMenu>,
+        cx: &mut ModelContext<Editor>,
     ) -> Self {
         let context_menu_focus = context_menu.focus_handle(cx);
         cx.focus(&context_menu_focus);
@@ -121,7 +121,7 @@ pub fn deploy_context_menu(
     editor: &mut Editor,
     position: Point<Pixels>,
     point: DisplayPoint,
-    cx: &mut ViewContext<Editor>,
+    cx: &mut ModelContext<Editor>,
 ) {
     if !editor.is_focused(cx) {
         editor.focus(cx);
@@ -171,7 +171,7 @@ pub fn deploy_context_menu(
             .into_iter()
             .any(|s| !s.is_empty());
 
-        ui::ContextMenu::build(cx, |menu, _cx| {
+        ui::ContextMenu::build(window, cx, |menu, window, _cx| {
             let builder = menu
                 .on_blur_subscription(Subscription::new(|| {}))
                 .action("Go to Definition", Box::new(GoToDefinition))

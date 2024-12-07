@@ -213,7 +213,7 @@ impl LanguageModelProvider for OllamaLanguageModelProvider {
 
     fn configuration_view(&self, cx: &mut WindowContext) -> AnyView {
         let state = self.state.clone();
-        cx.new_view(|cx| ConfigurationView::new(state, cx)).into()
+        cx.new_model(|cx| ConfigurationView::new(state, cx)).into()
     }
 
     fn reset_credentials(&self, cx: &mut AppContext) -> Task<Result<()>> {
@@ -412,7 +412,7 @@ struct ConfigurationView {
 }
 
 impl ConfigurationView {
-    pub fn new(state: gpui::Model<State>, cx: &mut ViewContext<Self>) -> Self {
+    pub fn new(state: gpui::Model<State>, cx: &mut ModelContext<Self>) -> Self {
         let loading_models_task = Some(cx.spawn({
             let state = state.clone();
             |this, mut cx| async move {
@@ -444,7 +444,7 @@ impl ConfigurationView {
 }
 
 impl Render for ConfigurationView {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let is_authenticated = self.state.read(cx).is_authenticated();
 
         let ollama_intro = "Get up and running with Llama 3.2, Mistral, Gemma 2, and other large language models with Ollama.";

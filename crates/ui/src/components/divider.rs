@@ -17,7 +17,7 @@ pub enum DividerColor {
 }
 
 impl DividerColor {
-    pub fn hsla(self, cx: &WindowContext) -> Hsla {
+    pub fn hsla(self, cx: &AppContext) -> Hsla {
         match self {
             DividerColor::Border => cx.theme().colors().border,
             DividerColor::BorderVariant => cx.theme().colors().border_variant,
@@ -33,7 +33,7 @@ pub struct Divider {
 }
 
 impl RenderOnce for Divider {
-    fn render(self, cx: &mut WindowContext) -> impl IntoElement {
+    fn render(self, _window: &mut Window, cx: &mut AppContext) -> impl IntoElement {
         div()
             .map(|this| match self.direction {
                 DividerDirection::Horizontal => {

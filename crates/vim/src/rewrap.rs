@@ -3,11 +3,11 @@ use collections::HashMap;
 use editor::{display_map::ToDisplayPoint, scroll::Autoscroll, Bias, Editor, IsVimMode};
 use gpui::actions;
 use language::SelectionGoal;
-use ui::ViewContext;
+use ui::ModelContext;
 
 actions!(vim, [Rewrap]);
 
-pub(crate) fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
+pub(crate) fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
     Vim::action(editor, cx, |vim, _: &Rewrap, cx| {
         vim.record_current_action(cx);
         vim.take_count(cx);
@@ -38,7 +38,7 @@ impl Vim {
         &mut self,
         motion: Motion,
         times: Option<usize>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.stop_recording(cx);
         self.update_editor(cx, |_, editor, cx| {
@@ -69,7 +69,7 @@ impl Vim {
         &mut self,
         object: Object,
         around: bool,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.stop_recording(cx);
         self.update_editor(cx, |_, editor, cx| {

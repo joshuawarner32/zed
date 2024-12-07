@@ -364,7 +364,7 @@ impl LanguageModelProvider for CloudLanguageModelProvider {
     }
 
     fn configuration_view(&self, cx: &mut WindowContext) -> AnyView {
-        cx.new_view(|_cx| ConfigurationView {
+        cx.new_model(|_cx| ConfigurationView {
             state: self.state.clone(),
         })
         .into()
@@ -842,14 +842,14 @@ struct ConfigurationView {
 }
 
 impl ConfigurationView {
-    fn authenticate(&mut self, cx: &mut ViewContext<Self>) {
+    fn authenticate(&mut self, cx: &mut ModelContext<Self>) {
         self.state.update(cx, |state, cx| {
             state.authenticate(cx).detach_and_log_err(cx);
         });
         cx.notify();
     }
 
-    fn render_accept_terms(&mut self, cx: &mut ViewContext<Self>) -> Option<AnyElement> {
+    fn render_accept_terms(&mut self, cx: &mut ModelContext<Self>) -> Option<AnyElement> {
         if self.state.read(cx).has_accepted_terms_of_service(cx) {
             return None;
         }
@@ -891,7 +891,7 @@ impl ConfigurationView {
 }
 
 impl Render for ConfigurationView {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         const ZED_AI_URL: &str = "https://zed.dev/ai";
 
         let is_connected = !self.state.read(cx).is_signed_out();

@@ -21,7 +21,7 @@ impl FeatureFlag for SettingsUiFeatureFlag {
 actions!(zed, [OpenSettingsEditor]);
 
 pub fn init(cx: &mut AppContext) {
-    cx.observe_new_views(|workspace: &mut Workspace, cx| {
+    cx.observe_new_models(|workspace: &mut Workspace, cx| {
         workspace.register_action(|workspace, _: &OpenSettingsEditor, cx| {
             let existing = workspace
                 .active_pane()
@@ -64,8 +64,8 @@ pub struct SettingsPage {
 }
 
 impl SettingsPage {
-    pub fn new(_workspace: &Workspace, cx: &mut ViewContext<Workspace>) -> View<Self> {
-        cx.new_view(|cx| Self {
+    pub fn new(_workspace: &Workspace, cx: &mut ModelContext<Workspace>) -> Model<Self> {
+        cx.new_model(|cx| Self {
             focus_handle: cx.focus_handle(),
         })
     }
@@ -100,7 +100,7 @@ impl Item for SettingsPage {
 }
 
 impl Render for SettingsPage {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex()
             .p_4()
             .size_full()

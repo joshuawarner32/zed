@@ -11,14 +11,14 @@ use editor::{
     Bias, DisplayPoint,
 };
 use language::Selection;
-use ui::ViewContext;
+use ui::ModelContext;
 
 impl Vim {
     pub fn change_motion(
         &mut self,
         motion: Motion,
         times: Option<usize>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         // Some motions ignore failure when switching to normal mode
         let mut motion_succeeded = matches!(
@@ -87,7 +87,7 @@ impl Vim {
         }
     }
 
-    pub fn change_object(&mut self, object: Object, around: bool, cx: &mut ViewContext<Self>) {
+    pub fn change_object(&mut self, object: Object, around: bool, cx: &mut ModelContext<Self>) {
         let mut objects_found = false;
         self.update_editor(cx, |vim, editor, cx| {
             // We are swapping to insert mode anyway. Just set the line end clipping behavior now

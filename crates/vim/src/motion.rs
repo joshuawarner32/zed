@@ -6,7 +6,7 @@ use editor::{
     scroll::Autoscroll,
     Anchor, Bias, DisplayPoint, Editor, RowExt, ToOffset,
 };
-use gpui::{actions, impl_actions, px, ViewContext};
+use gpui::{actions, impl_actions, px, ModelContext};
 use language::{CharKind, Point, Selection, SelectionGoal};
 use multi_buffer::MultiBufferRow;
 use serde::Deserialize;
@@ -250,7 +250,7 @@ actions!(
     ]
 );
 
-pub fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
+pub fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
     Vim::action(editor, cx, |vim, _: &Left, cx| vim.motion(Motion::Left, cx));
     Vim::action(editor, cx, |vim, _: &Backspace, cx| {
         vim.motion(Motion::Backspace, cx)
@@ -422,7 +422,7 @@ pub fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
 }
 
 impl Vim {
-    pub(crate) fn search_motion(&mut self, m: Motion, cx: &mut ViewContext<Self>) {
+    pub(crate) fn search_motion(&mut self, m: Motion, cx: &mut ModelContext<Self>) {
         if let Motion::ZedSearchResult {
             prior_selections, ..
         } = &m
@@ -448,7 +448,7 @@ impl Vim {
         self.motion(m, cx)
     }
 
-    pub(crate) fn motion(&mut self, motion: Motion, cx: &mut ViewContext<Self>) {
+    pub(crate) fn motion(&mut self, motion: Motion, cx: &mut ModelContext<Self>) {
         if let Some(Operator::FindForward { .. }) | Some(Operator::FindBackward { .. }) =
             self.active_operator()
         {

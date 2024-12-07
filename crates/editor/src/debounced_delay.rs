@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use futures::{channel::oneshot, FutureExt};
-use gpui::{Task, ViewContext};
+use gpui::{Task, ModelContext};
 
 use crate::Editor;
 
@@ -19,9 +19,9 @@ impl DebouncedDelay {
         }
     }
 
-    pub fn fire_new<F>(&mut self, delay: Duration, cx: &mut ViewContext<Editor>, func: F)
+    pub fn fire_new<F>(&mut self, delay: Duration, cx: &mut ModelContext<Editor>, func: F)
     where
-        F: 'static + Send + FnOnce(&mut Editor, &mut ViewContext<Editor>) -> Task<()>,
+        F: 'static + Send + FnOnce(&mut Editor, &mut ModelContext<Editor>) -> Task<()>,
     {
         if let Some(channel) = self.cancel_channel.take() {
             _ = channel.send(());

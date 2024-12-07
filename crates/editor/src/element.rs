@@ -34,7 +34,7 @@ use gpui::{
     FontId, GlobalElementId, Hitbox, Hsla, InteractiveElement, IntoElement, Length,
     ModifiersChangedEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad,
     ParentElement, Pixels, ScrollDelta, ScrollWheelEvent, ShapedLine, SharedString, Size,
-    StatefulInteractiveElement, Style, Styled, TextRun, TextStyleRefinement, View, ViewContext,
+    StatefulInteractiveElement, Style, Styled, TextRun, TextStyleRefinement, View, ModelContext,
     WeakView, WindowContext,
 };
 use gpui::{ClickEvent, Subscription};
@@ -143,7 +143,7 @@ impl SelectionLayout {
 }
 
 pub struct EditorElement {
-    editor: View<Editor>,
+    editor: Model<Editor>,
     style: EditorStyle,
 }
 
@@ -152,14 +152,14 @@ type DisplayRowDelta = u32;
 impl EditorElement {
     pub(crate) const SCROLLBAR_WIDTH: Pixels = px(13.);
 
-    pub fn new(editor: &View<Editor>, style: EditorStyle) -> Self {
+    pub fn new(editor: &Model<Editor>, style: EditorStyle) -> Self {
         Self {
             editor: editor.clone(),
             style,
         }
     }
 
-    fn register_actions(&self, cx: &mut WindowContext) {
+    fn register_actions(&self, window: &mut Window, cx: &mut AppContext) {
         let view = &self.editor;
         view.update(cx, |editor, cx| {
             for action in editor.editor_actions.borrow().values() {
@@ -308,30 +308,30 @@ impl EditorElement {
         register_action(view, cx, Editor::go_to_prev_diagnostic);
         register_action(view, cx, Editor::go_to_next_hunk);
         register_action(view, cx, Editor::go_to_prev_hunk);
-        register_action(view, cx, |editor, a, cx| {
+        register_action(view, cx, |editor, a, window, cx| {
             editor.go_to_definition(a, cx).detach_and_log_err(cx);
         });
-        register_action(view, cx, |editor, a, cx| {
+        register_action(view, cx, |editor, a, window, cx| {
             editor.go_to_definition_split(a, cx).detach_and_log_err(cx);
         });
-        register_action(view, cx, |editor, a, cx| {
+        register_action(view, cx, |editor, a, window, cx| {
             editor.go_to_declaration(a, cx).detach_and_log_err(cx);
         });
-        register_action(view, cx, |editor, a, cx| {
+        register_action(view, cx, |editor, a, window, cx| {
             editor.go_to_declaration_split(a, cx).detach_and_log_err(cx);
         });
-        register_action(view, cx, |editor, a, cx| {
+        register_action(view, cx, |editor, a, window, cx| {
             editor.go_to_implementation(a, cx).detach_and_log_err(cx);
         });
-        register_action(view, cx, |editor, a, cx| {
+        register_action(view, cx, |editor, a, window, cx| {
             editor
                 .go_to_implementation_split(a, cx)
                 .detach_and_log_err(cx);
         });
-        register_action(view, cx, |editor, a, cx| {
+        register_action(view, cx, |editor, a, window, cx| {
             editor.go_to_type_definition(a, cx).detach_and_log_err(cx);
         });
-        register_action(view, cx, |editor, a, cx| {
+        register_action(view, cx, |editor, a, window, cx| {
             editor
                 .go_to_type_definition_split(a, cx)
                 .detach_and_log_err(cx);
@@ -374,14 +374,14 @@ impl EditorElement {
         register_action(view, cx, Editor::toggle_git_blame_inline);
         register_action(view, cx, Editor::toggle_hunk_diff);
         register_action(view, cx, Editor::expand_all_hunk_diffs);
-        register_action(view, cx, |editor, action, cx| {
+        register_action(view, cx, |editor, action, window, cx| {
             if let Some(task) = editor.format(action, cx) {
                 task.detach_and_log_err(cx);
             } else {
                 cx.propagate();
             }
         });
-        register_action(view, cx, |editor, action, cx| {
+        register_action(view, cx, |editor, action, window, cx| {
             if let Some(task) = editor.format_selections(action, cx) {
                 task.detach_and_log_err(cx);
             } else {
@@ -391,42 +391,42 @@ impl EditorElement {
         register_action(view, cx, Editor::restart_language_server);
         register_action(view, cx, Editor::cancel_language_server_work);
         register_action(view, cx, Editor::show_character_palette);
-        register_action(view, cx, |editor, action, cx| {
+        register_action(view, cx, |editor, action, window, cx| {
             if let Some(task) = editor.confirm_completion(action, cx) {
                 task.detach_and_log_err(cx);
             } else {
                 cx.propagate();
             }
         });
-        register_action(view, cx, |editor, action, cx| {
+        register_action(view, cx, |editor, action, window, cx| {
             if let Some(task) = editor.compose_completion(action, cx) {
                 task.detach_and_log_err(cx);
             } else {
                 cx.propagate();
             }
         });
-        register_action(view, cx, |editor, action, cx| {
+        register_action(view, cx, |editor, action, window, cx| {
             if let Some(task) = editor.confirm_code_action(action, cx) {
                 task.detach_and_log_err(cx);
             } else {
                 cx.propagate();
             }
         });
-        register_action(view, cx, |editor, action, cx| {
+        register_action(view, cx, |editor, action, window, cx| {
             if let Some(task) = editor.rename(action, cx) {
                 task.detach_and_log_err(cx);
             } else {
                 cx.propagate();
             }
         });
-        register_action(view, cx, |editor, action, cx| {
+        register_action(view, cx, |editor, action, window, cx| {
             if let Some(task) = editor.confirm_rename(action, cx) {
                 task.detach_and_log_err(cx);
             } else {
                 cx.propagate();
             }
         });
-        register_action(view, cx, |editor, action, cx| {
+        register_action(view, cx, |editor, action, window, cx| {
             if let Some(task) = editor.find_all_references(action, cx) {
                 task.detach_and_log_err(cx);
             } else {
@@ -479,7 +479,7 @@ impl EditorElement {
         event: &ModifiersChangedEvent,
         position_map: &PositionMap,
         text_hitbox: &Hitbox,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) {
         let mouse_position = cx.mouse_position();
         if !text_hitbox.is_hovered(cx) {
@@ -501,7 +501,7 @@ impl EditorElement {
         position_map: &PositionMap,
         text_hitbox: &Hitbox,
         gutter_hitbox: &Hitbox,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) {
         if cx.default_prevented() {
             return;
@@ -584,7 +584,7 @@ impl EditorElement {
         event: &MouseDownEvent,
         position_map: &PositionMap,
         text_hitbox: &Hitbox,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) {
         if !text_hitbox.is_hovered(cx) {
             return;
@@ -605,7 +605,7 @@ impl EditorElement {
         event: &MouseDownEvent,
         position_map: &PositionMap,
         text_hitbox: &Hitbox,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) {
         if !text_hitbox.is_hovered(cx) || cx.default_prevented() {
             return;
@@ -630,7 +630,7 @@ impl EditorElement {
         event: &MouseUpEvent,
         position_map: &PositionMap,
         text_hitbox: &Hitbox,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) {
         let end_selection = editor.has_pending_selection();
         let pending_nonempty_selections = editor.has_pending_nonempty_selection();
@@ -686,7 +686,7 @@ impl EditorElement {
         event: &MouseMoveEvent,
         position_map: &PositionMap,
         text_bounds: Bounds<Pixels>,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) {
         if !editor.has_pending_selection() {
             return;
@@ -730,7 +730,7 @@ impl EditorElement {
         position_map: &PositionMap,
         text_hitbox: &Hitbox,
         gutter_hitbox: &Hitbox,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) {
         let modifiers = event.modifiers;
         let gutter_hovered = gutter_hitbox.is_hovered(cx);
@@ -766,7 +766,7 @@ impl EditorElement {
         editor: &mut Editor,
         point: DisplayPoint,
         position_map: &PositionMap,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
     ) {
         let snapshot = &position_map.snapshot;
         let Some(hub) = editor.collaboration_hub() else {
@@ -1246,7 +1246,7 @@ impl EditorElement {
                     AvailableSpace::MinContent,
                     AvailableSpace::Definite(line_height * 0.55),
                 );
-                let crease_toggle_size = crease_toggle.layout_as_root(available_space, cx);
+                let crease_toggle_size = crease_toggle.layout_as_root(available_space, window, cx);
 
                 let position = point(
                     gutter_dimensions.width - gutter_dimensions.right_padding,
@@ -1257,7 +1257,7 @@ impl EditorElement {
                     (line_height - crease_toggle_size.height) / 2.,
                 );
                 let origin = gutter_hitbox.origin + position + centering_offset;
-                crease_toggle.prepaint_as_root(origin, available_space, cx);
+                crease_toggle.prepaint_as_root(origin, available_space, window, cx);
             }
         }
     }
@@ -1282,7 +1282,7 @@ impl EditorElement {
                     AvailableSpace::MinContent,
                     AvailableSpace::Definite(line_height),
                 );
-                let size = element.layout_as_root(available_space, cx);
+                let size = element.layout_as_root(available_space, window, cx);
 
                 let line = &lines[ix];
                 let padding = if line.width == Pixels::ZERO {
@@ -1296,7 +1296,7 @@ impl EditorElement {
                 );
                 let centering_offset = point(px(0.), (line_height - size.height) / 2.);
                 let origin = content_origin + position + centering_offset;
-                element.prepaint_as_root(origin, available_space, cx);
+                element.prepaint_as_root(origin, available_space, window, cx);
                 Some(CreaseTrailerLayout {
                     element,
                     bounds: Bounds::new(origin, size),
@@ -1475,8 +1475,7 @@ impl EditorElement {
             };
 
             let absolute_offset = point(start_x, start_y);
-            element.prepaint_as_root(absolute_offset, AvailableSpace::min_size(), cx);
-
+            element.prepaint_as_root(absolute_offset, AvailableSpace::min_size(), window, cx);s
             Some(element)
         } else if let Some(mut element) = self.editor.update(cx, |editor, cx| {
             editor.render_active_line_trailer(&self.style, cx)
@@ -1547,6 +1546,7 @@ impl EditorElement {
                     element.prepaint_as_root(
                         absolute_offset,
                         size(width, AvailableSpace::MinContent),
+                        window,
                         cx,
                     );
 
@@ -2264,7 +2264,12 @@ impl EditorElement {
                                         .child(Icon::new(IconName::ArrowUpRight))
                                         .cursor_pointer()
                                         .tooltip(|cx| {
-                                            Tooltip::for_action("Jump to File", &OpenExcerpts, cx)
+                                            Tooltip::for_action(
+                                                "Jump to File",
+                                                &OpenExcerpts,
+                                                window,
+                                                cx,
+                                            )
                                         })
                                         .on_mouse_down(MouseButton::Left, |_, cx| {
                                             cx.stop_propagation()
@@ -2360,7 +2365,7 @@ impl EditorElement {
                                             },
                                             jump_data.position.row + 1
                                         );
-                                        Tooltip::for_action(jump_message, &OpenExcerpts, cx)
+                                        Tooltip::for_action(jump_message, &OpenExcerpts, window, cx)
                                     }
                                 })
                                 .child(
@@ -2407,13 +2412,16 @@ impl EditorElement {
         };
 
         // Discover the element's content height, then round up to the nearest multiple of line height.
-        let preliminary_size =
-            element.layout_as_root(size(available_width, AvailableSpace::MinContent), cx);
+        let preliminary_size = element.layout_as_root(
+            size(available_width, AvailableSpace::MinContent),
+            window,
+            cx,
+        );
         let quantized_height = (preliminary_size.height / line_height).ceil() * line_height;
         let final_size = if preliminary_size.height == quantized_height {
             preliminary_size
         } else {
-            element.layout_as_root(size(available_width, quantized_height.into()), cx)
+            element.layout_as_root(size(available_width, quantized_height.into()), window, cx)
         };
 
         if let BlockId::Custom(custom_block_id) = block_id {
@@ -2452,7 +2460,9 @@ impl EditorElement {
                 }
             }))
             .tooltip({
-                move |cx| Tooltip::for_action("Expand Excerpt", &ExpandExcerpts { lines: 0 }, cx)
+                move |cx| {
+                    Tooltip::for_action("Expand Excerpt", &ExpandExcerpts { lines: 0 }, window, cx)
+                }
             })
     }
 
@@ -2654,9 +2664,10 @@ impl EditorElement {
                 origin += point(-scroll_pixel_position.x, Pixels::ZERO);
             }
 
-            let focus_handle = block
-                .element
-                .prepaint_as_root(origin, block.available_space, cx);
+            let focus_handle =
+                block
+                    .element
+                    .prepaint_as_root(origin, block.available_space, window, cx);
 
             if let Some(focus_handle) = focus_handle {
                 self.editor.update(cx, |editor, _cx| {
@@ -2874,7 +2885,7 @@ impl EditorElement {
                 .occlude()
                 .on_mouse_move(|_, cx| cx.stop_propagation())
                 .into_any_element();
-            occlusion.layout_as_root(size(width, HOVER_POPOVER_GAP).into(), cx);
+            occlusion.layout_as_root(size(width, HOVER_POPOVER_GAP).into(), window, cx);
             cx.defer_draw(occlusion, origin, 2);
         }
 
@@ -3221,7 +3232,7 @@ impl EditorElement {
                         ix as f32 * line_height - (scroll_top % line_height),
                     );
 
-                line.paint(line_origin, line_height, cx).log_err();
+                line.paint(line_origin, line_height, window, cx).log_err();
             }
         }
     }
@@ -3366,16 +3377,16 @@ impl EditorElement {
         cx.paint_layer(layout.gutter_hitbox.bounds, |cx| {
             cx.with_element_namespace("crease_toggles", |cx| {
                 for crease_toggle in layout.crease_toggles.iter_mut().flatten() {
-                    crease_toggle.paint(cx);
+                    crease_toggle.paint(window, cx);
                 }
             });
 
             for test_indicator in layout.test_indicators.iter_mut() {
-                test_indicator.paint(cx);
+                test_indicator.paint(window, cx);
             }
 
             if let Some(indicator) = layout.code_actions_indicator.as_mut() {
-                indicator.paint(cx);
+                indicator.paint(window, cx);
             }
         });
     }
@@ -3438,7 +3449,7 @@ impl EditorElement {
 
         cx.paint_layer(layout.gutter_hitbox.bounds, |cx| {
             for mut blame_element in blamed_display_rows.into_iter() {
-                blame_element.paint(cx);
+                blame_element.paint(window, cx);
             }
         })
     }
@@ -3469,7 +3480,7 @@ impl EditorElement {
                 self.paint_active_line_trailer(layout, cx);
                 cx.with_element_namespace("crease_trailers", |cx| {
                     for trailer in layout.crease_trailers.iter_mut().flatten() {
-                        trailer.element.paint(cx);
+                        trailer.element.paint(window, cx);
                     }
                 });
             },
@@ -3544,7 +3555,7 @@ impl EditorElement {
         }
 
         for line_element in &mut layout.line_elements {
-            line_element.paint(cx);
+            line_element.paint(window, cx);
         }
     }
 
@@ -3951,20 +3962,20 @@ impl EditorElement {
     fn paint_active_line_trailer(&mut self, layout: &mut EditorLayout, cx: &mut WindowContext) {
         if let Some(mut element) = layout.active_line_trailer.take() {
             cx.paint_layer(layout.text_hitbox.bounds, |cx| {
-                element.paint(cx);
+                element.paint(window, cx);
             })
         }
     }
 
     fn paint_blocks(&mut self, layout: &mut EditorLayout, cx: &mut WindowContext) {
         for mut block in layout.blocks.drain(..) {
-            block.element.paint(cx);
+            block.element.paint(window, cx);
         }
     }
 
     fn paint_mouse_context_menu(&mut self, layout: &mut EditorLayout, cx: &mut WindowContext) {
         if let Some(mouse_context_menu) = layout.mouse_context_menu.as_mut() {
-            mouse_context_menu.paint(cx);
+            mouse_context_menu.paint(window, cx);
         }
     }
 
@@ -4176,7 +4187,7 @@ fn prepaint_gutter_button(
         AvailableSpace::MinContent,
         AvailableSpace::Definite(line_height),
     );
-    let indicator_size = button.layout_as_root(available_space, cx);
+    let indicator_size = button.layout_as_root(available_space, window, cx);
 
     let blame_width = gutter_dimensions.git_blame_entries_width;
     let gutter_width = rows_with_hunk_bounds
@@ -4193,7 +4204,12 @@ fn prepaint_gutter_button(
     let mut y = row.as_f32() * line_height - scroll_pixel_position.y;
     y += (line_height - indicator_size.height) / 2.;
 
-    button.prepaint_as_root(gutter_hitbox.origin + point(x, y), available_space, cx);
+    button.prepaint_as_root(
+        gutter_hitbox.origin + point(x, y),
+        available_space,
+        window,
+        cx,
+    );
     button
 }
 
@@ -4201,7 +4217,7 @@ fn render_inline_blame_entry(
     blame: &gpui::Model<GitBlame>,
     blame_entry: BlameEntry,
     style: &EditorStyle,
-    workspace: Option<WeakView<Workspace>>,
+    workspace: Option<WeakModel<Workspace>>,
     cx: &mut WindowContext<'_>,
 ) -> AnyElement {
     let relative_timestamp = blame_entry_relative_timestamp(&blame_entry);
@@ -4220,7 +4236,7 @@ fn render_inline_blame_entry(
 
     let details = blame.read(cx).details_for_entry(&blame_entry);
 
-    let tooltip = cx.new_view(|_| BlameEntryTooltip::new(blame_entry, details, style, workspace));
+    let tooltip = cx.new_model(|_| BlameEntryTooltip::new(blame_entry, details, style, workspace));
 
     h_flex()
         .id("inline-blame")
@@ -4241,7 +4257,7 @@ fn render_blame_entry(
     blame_entry: BlameEntry,
     style: &EditorStyle,
     last_used_color: &mut Option<(PlayerColor, Oid)>,
-    editor: View<Editor>,
+    editor: Model<Editor>,
     cx: &mut WindowContext<'_>,
 ) -> AnyElement {
     let mut sha_color = cx
@@ -4270,7 +4286,7 @@ fn render_blame_entry(
 
     let workspace = editor.read(cx).workspace.as_ref().map(|(w, _)| w.clone());
 
-    let tooltip = cx.new_view(|_| {
+    let tooltip = cx.new_model(|_| {
         BlameEntryTooltip::new(blame_entry.clone(), details.clone(), style, workspace)
     });
 
@@ -4322,11 +4338,11 @@ fn render_blame_entry(
 fn deploy_blame_entry_context_menu(
     blame_entry: &BlameEntry,
     details: Option<&CommitDetails>,
-    editor: View<Editor>,
+    editor: Model<Editor>,
     position: gpui::Point<Pixels>,
     cx: &mut WindowContext<'_>,
 ) {
-    let context_menu = ContextMenu::build(cx, move |menu, _| {
+    let context_menu = ContextMenu::build(window, cx, move |menu, window, _| {
         let sha = format!("{}", blame_entry.sha);
         menu.on_blur_subscription(Subscription::new(|| {}))
             .entry("Copy commit SHA", None, move |cx| {
@@ -4607,7 +4623,7 @@ impl LineWithInvisibles {
                     // Center the element vertically within the line.
                     let mut element_origin = fragment_origin;
                     element_origin.y += (line_height - size.height) / 2.;
-                    element.prepaint_at(element_origin, cx);
+                    element.prepaint_at(element_origin, window, cx);
                     line_elements.push(element);
 
                     fragment_origin.x += size.width;
@@ -4635,7 +4651,8 @@ impl LineWithInvisibles {
         for fragment in &self.fragments {
             match fragment {
                 LineFragment::Text(line) => {
-                    line.paint(fragment_origin, line_height, cx).log_err();
+                    line.paint(fragment_origin, line_height, window, cx)
+                        .log_err();
                     fragment_origin.x += line.width;
                 }
                 LineFragment::Element { size, .. } => {
@@ -4691,7 +4708,9 @@ impl LineWithInvisibles {
             (
                 [token_offset, token_end_offset],
                 Box::new(move |cx: &mut WindowContext| {
-                    invisible_symbol.paint(origin, line_height, cx).log_err();
+                    invisible_symbol
+                        .paint(origin, line_height, window, cx)
+                        .log_err();
                 }),
             )
         };
@@ -5280,7 +5299,7 @@ impl Element for EditorElement {
                             self.editor.update(cx, |editor, cx| {
                                 editor.resize_blocks(resized_blocks, autoscroll_request, cx)
                             });
-                            return self.prepaint(None, bounds, &mut (), cx);
+                            return self.prepaint(None, bounds, &mut (), window, cx);
                         }
                     };
 
@@ -5702,7 +5721,7 @@ impl Element for EditorElement {
             &focus_handle,
             ElementInputHandler::new(bounds, self.editor.clone()),
         );
-        self.register_actions(cx);
+        self.register_actions(window, cx);
         self.register_key_listeners(cx, layout);
 
         let text_style = TextStyleRefinement {
@@ -6143,7 +6162,7 @@ impl CursorLayout {
                 .child(cursor_name.string.clone())
                 .into_any_element();
 
-            name_element.prepaint_as_root(name_origin, AvailableSpace::min_size(), cx);
+            name_element.prepaint_as_root(name_origin, AvailableSpace::min_size(), window, cx);
 
             self.cursor_name = Some(name_element);
         }
@@ -6160,14 +6179,14 @@ impl CursorLayout {
         };
 
         if let Some(name) = &mut self.cursor_name {
-            name.paint(cx);
+            name.paint(window, cx);
         }
 
         cx.paint_quad(cursor);
 
         if let Some(block_text) = &self.block_text {
             block_text
-                .paint(self.origin + origin, self.line_height, cx)
+                .paint(self.origin + origin, self.line_height, window, cx)
                 .log_err();
         }
     }
@@ -6322,9 +6341,9 @@ fn scale_horizontal_mouse_autoscroll_delta(delta: Pixels) -> f32 {
 }
 
 pub fn register_action<T: Action>(
-    view: &View<Editor>,
+    view: &Model<Editor>,
     cx: &mut WindowContext,
-    listener: impl Fn(&mut Editor, &T, &mut ViewContext<Editor>) + 'static,
+    listener: impl Fn(&mut Editor, &T, &mut ModelContext<Editor>) + 'static,
 ) {
     let view = view.clone();
     cx.on_action(TypeId::of::<T>(), move |action, phase, cx| {
@@ -6343,7 +6362,7 @@ fn compute_auto_height_layout(
     max_line_number_width: Pixels,
     known_dimensions: Size<Option<Pixels>>,
     available_width: AvailableSpace,
-    cx: &mut ViewContext<Editor>,
+    cx: &mut ModelContext<Editor>,
 ) -> Option<Size<Pixels>> {
     let width = known_dimensions.width.or({
         if let AvailableSpace::Definite(available_width) = available_width {

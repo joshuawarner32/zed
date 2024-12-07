@@ -608,7 +608,7 @@ fn test_clone(cx: &mut TestAppContext) {
 
     let cloned_editor = editor
         .update(cx, |editor, cx| {
-            cx.open_window(Default::default(), |cx| cx.new_view(|cx| editor.clone(cx)))
+            cx.open_window(Default::default(), |cx| cx.new_model(|cx| editor.clone(cx)))
         })
         .unwrap()
         .unwrap();
@@ -660,7 +660,7 @@ async fn test_navigation_history(cx: &mut TestAppContext) {
         .unwrap();
 
     _ = workspace.update(cx, |_v, cx| {
-        cx.new_view(|cx| {
+        cx.new_model(|cx| {
             let buffer = MultiBuffer::build_simple(&sample_text(300, 5, 'a'), cx);
             let mut editor = build_editor(buffer.clone(), cx);
             let handle = cx.view();
@@ -6600,7 +6600,7 @@ async fn test_snippet_placeholder_choices(cx: &mut gpui::TestAppContext) {
             .insert_snippet(&insertion_ranges, snippet, cx)
             .unwrap();
 
-        fn assert(editor: &mut Editor, cx: &mut ViewContext<Editor>, marked_text: &str) {
+        fn assert(editor: &mut Editor, cx: &mut ModelContext<Editor>, marked_text: &str) {
             let (expected_text, selection_ranges) = marked_text_ranges(marked_text, false);
             assert_eq!(editor.text(cx), expected_text);
             assert_eq!(editor.selections.ranges::<usize>(cx), selection_ranges);
@@ -6641,7 +6641,7 @@ async fn test_snippets(cx: &mut gpui::TestAppContext) {
             .insert_snippet(&insertion_ranges, snippet, cx)
             .unwrap();
 
-        fn assert(editor: &mut Editor, cx: &mut ViewContext<Editor>, marked_text: &str) {
+        fn assert(editor: &mut Editor, cx: &mut ModelContext<Editor>, marked_text: &str) {
             let (expected_text, selection_ranges) = marked_text_ranges(marked_text, false);
             assert_eq!(editor.text(cx), expected_text);
             assert_eq!(editor.selections.ranges::<usize>(cx), selection_ranges);
@@ -6988,7 +6988,7 @@ async fn test_multibuffer_format_during_save(cx: &mut gpui::TestAppContext) {
         );
         multi_buffer
     });
-    let multi_buffer_editor = cx.new_view(|cx| {
+    let multi_buffer_editor = cx.new_model(|cx| {
         Editor::new(
             EditorMode::Full,
             multi_buffer,
@@ -9533,7 +9533,7 @@ async fn test_following(cx: &mut gpui::TestAppContext) {
                 ))),
                 ..Default::default()
             },
-            |cx| cx.new_view(|cx| build_editor(buffer.clone(), cx)),
+            |cx| cx.new_model(|cx| build_editor(buffer.clone(), cx)),
         )
         .unwrap()
     });
@@ -9690,7 +9690,7 @@ async fn test_following_with_multiple_excerpts(cx: &mut gpui::TestAppContext) {
 
     let leader = pane.update(cx, |_, cx| {
         let multibuffer = cx.new_model(|_| MultiBuffer::new(ReadWrite));
-        cx.new_view(|cx| build_editor(multibuffer.clone(), cx))
+        cx.new_model(|cx| build_editor(multibuffer.clone(), cx))
     });
 
     // Start following the editor when it has no excerpts.
@@ -11365,7 +11365,7 @@ async fn test_mutlibuffer_in_navigation_history(cx: &mut gpui::TestAppContext) {
     let project = Project::test(fs, ["/a".as_ref()], cx).await;
     let workspace = cx.add_window(|cx| Workspace::test_new(project.clone(), cx));
     let cx = &mut VisualTestContext::from_window(*workspace.deref(), cx);
-    let multi_buffer_editor = cx.new_view(|cx| {
+    let multi_buffer_editor = cx.new_model(|cx| {
         Editor::new(
             EditorMode::Full,
             multi_buffer,
@@ -13518,7 +13518,7 @@ async fn test_find_enclosing_node_with_task(cx: &mut gpui::TestAppContext) {
     let buffer = cx.new_model(|cx| Buffer::local(text, cx).with_language(language, cx));
     let multi_buffer = cx.new_model(|cx| MultiBuffer::singleton(buffer.clone(), cx));
 
-    let editor = cx.new_view(|cx| {
+    let editor = cx.new_model(|cx| {
         Editor::new(
             EditorMode::Full,
             multi_buffer,
@@ -13571,7 +13571,7 @@ fn empty_range(row: usize, column: usize) -> Range<DisplayPoint> {
     point..point
 }
 
-fn assert_selection_ranges(marked_text: &str, view: &mut Editor, cx: &mut ViewContext<Editor>) {
+fn assert_selection_ranges(marked_text: &str, view: &mut Editor, cx: &mut ModelContext<Editor>) {
     let (text, ranges) = marked_text_ranges(marked_text, true);
     assert_eq!(view.text(cx), text);
     assert_eq!(

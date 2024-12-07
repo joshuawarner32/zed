@@ -7,7 +7,7 @@ use editor::{
     scroll::Autoscroll,
     Bias, DisplayPoint, Editor, ToOffset,
 };
-use gpui::{actions, ViewContext};
+use gpui::{actions, ModelContext};
 use language::{Point, Selection, SelectionGoal};
 use multi_buffer::MultiBufferRow;
 use search::BufferSearchBar;
@@ -42,7 +42,7 @@ actions!(
     ]
 );
 
-pub fn register(editor: &mut Editor, cx: &mut ViewContext<Vim>) {
+pub fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
     Vim::action(editor, cx, |vim, _: &ToggleVisual, cx| {
         vim.toggle_mode(Mode::Visual, cx)
     });
@@ -120,7 +120,7 @@ impl Vim {
         &mut self,
         motion: Motion,
         times: Option<usize>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.update_editor(cx, |vim, editor, cx| {
             let text_layout_details = editor.text_layout_details(cx);
@@ -200,7 +200,7 @@ impl Vim {
         &mut self,
         preserve_goal: bool,
         editor: &mut Editor,
-        cx: &mut ViewContext<Editor>,
+        cx: &mut ModelContext<Editor>,
         mut move_selection: impl FnMut(
             &DisplaySnapshot,
             DisplayPoint,
@@ -304,7 +304,7 @@ impl Vim {
         })
     }
 
-    pub fn visual_object(&mut self, object: Object, cx: &mut ViewContext<Vim>) {
+    pub fn visual_object(&mut self, object: Object, cx: &mut ModelContext<Vim>) {
         if let Some(Operator::Object { around }) = self.active_operator() {
             self.pop_operator(cx);
             let current_mode = self.mode;
@@ -373,7 +373,11 @@ impl Vim {
         }
     }
 
-    fn visual_insert_end_of_line(&mut self, _: &VisualInsertEndOfLine, cx: &mut ViewContext<Self>) {
+    fn visual_insert_end_of_line(
+        &mut self,
+        _: &VisualInsertEndOfLine,
+        cx: &mut ModelContext<Self>,
+    ) {
         self.update_editor(cx, |_, editor, cx| {
             editor.split_selection_into_lines(&Default::default(), cx);
             editor.change_selections(Some(Autoscroll::fit()), cx, |s| {
@@ -389,7 +393,7 @@ impl Vim {
     fn visual_insert_first_non_white_space(
         &mut self,
         _: &VisualInsertFirstNonWhiteSpace,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.update_editor(cx, |_, editor, cx| {
             editor.split_selection_into_lines(&Default::default(), cx);
@@ -406,7 +410,7 @@ impl Vim {
         self.switch_mode(Mode::Insert, false, cx);
     }
 
-    fn toggle_mode(&mut self, mode: Mode, cx: &mut ViewContext<Self>) {
+    fn toggle_mode(&mut self, mode: Mode, cx: &mut ModelContext<Self>) {
         if self.mode == mode {
             self.switch_mode(Mode::Normal, false, cx);
         } else {
@@ -414,7 +418,7 @@ impl Vim {
         }
     }
 
-    pub fn other_end(&mut self, _: &OtherEnd, cx: &mut ViewContext<Self>) {
+    pub fn other_end(&mut self, _: &OtherEnd, cx: &mut ModelContext<Self>) {
         self.update_editor(cx, |_, editor, cx| {
             editor.change_selections(Some(Autoscroll::fit()), cx, |s| {
                 s.move_with(|_, selection| {
@@ -424,7 +428,7 @@ impl Vim {
         });
     }
 
-    pub fn visual_delete(&mut self, line_mode: bool, cx: &mut ViewContext<Self>) {
+    pub fn visual_delete(&mut self, line_mode: bool, cx: &mut ModelContext<Self>) {
         self.store_visual_marks(cx);
         self.update_editor(cx, |vim, editor, cx| {
             let mut original_columns: HashMap<_, _> = Default::default();
@@ -478,7 +482,7 @@ impl Vim {
         self.switch_mode(Mode::Normal, true, cx);
     }
 
-    pub fn visual_yank(&mut self, cx: &mut ViewContext<Self>) {
+    pub fn visual_yank(&mut self, cx: &mut ModelContext<Self>) {
         self.store_visual_marks(cx);
         self.update_editor(cx, |vim, editor, cx| {
             let line_mode = editor.selections.line_mode;
@@ -498,7 +502,7 @@ impl Vim {
         self.switch_mode(Mode::Normal, true, cx);
     }
 
-    pub(crate) fn visual_replace(&mut self, text: Arc<str>, cx: &mut ViewContext<Self>) {
+    pub(crate) fn visual_replace(&mut self, text: Arc<str>, cx: &mut ModelContext<Self>) {
         self.stop_recording(cx);
         self.update_editor(cx, |_, editor, cx| {
             editor.transact(cx, |editor, cx| {
@@ -537,7 +541,7 @@ impl Vim {
         self.switch_mode(Mode::Normal, false, cx);
     }
 
-    pub fn select_next(&mut self, _: &SelectNext, cx: &mut ViewContext<Self>) {
+    pub fn select_next(&mut self, _: &SelectNext, cx: &mut ModelContext<Self>) {
         let count = self
             .take_count(cx)
             .unwrap_or_else(|| if self.mode.is_visual() { 1 } else { 2 });
@@ -555,7 +559,7 @@ impl Vim {
         });
     }
 
-    pub fn select_previous(&mut self, _: &SelectPrevious, cx: &mut ViewContext<Self>) {
+    pub fn select_previous(&mut self, _: &SelectPrevious, cx: &mut ModelContext<Self>) {
         let count = self
             .take_count(cx)
             .unwrap_or_else(|| if self.mode.is_visual() { 1 } else { 2 });
@@ -572,7 +576,7 @@ impl Vim {
         });
     }
 
-    pub fn select_match(&mut self, direction: Direction, cx: &mut ViewContext<Self>) {
+    pub fn select_match(&mut self, direction: Direction, cx: &mut ModelContext<Self>) {
         let count = self.take_count(cx).unwrap_or(1);
         let Some(pane) = self.pane(cx) else {
             return;

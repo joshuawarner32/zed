@@ -1,4 +1,4 @@
-use crate::{seal::Sealed, AppContext, Context, Entity, ModelContext};
+use crate::{seal::Sealed, AppContext, Context, Entity, ModelContext, Window};
 use anyhow::{anyhow, Result};
 use derive_more::{Deref, DerefMut};
 use parking_lot::{RwLock, RwLockUpgradableReadGuard};
@@ -410,7 +410,7 @@ impl<T: 'static> Model<T> {
     ///
     /// The update function receives a context appropriate for its environment.
     /// When updating in an `AppContext`, it receives a `ModelContext`.
-    /// When updating in a `WindowContext`, it receives a `ViewContext`.
+    /// When updating in a `WindowContext`, it receives a `ModelContext`.
     pub fn update<C, R>(
         &self,
         cx: &mut C,
@@ -420,6 +420,32 @@ impl<T: 'static> Model<T> {
         C: Context,
     {
         cx.update_model(self, update)
+    }
+
+    /// Creates a listener function that updates this model when an event is received.
+    ///
+    /// This method takes a callback function that will be called with the model, the event, and a mutable
+    /// reference to the `AppContext`. It returns a new function that can be used as an event listener.
+    ///
+    /// # Arguments
+    ///
+    /// * `callback` - A closure that takes a mutable reference to the model (`&mut T`), a reference to the event (`&E`),
+    ///   and a mutable reference to the `AppContext`.
+    ///
+    /// # Returns
+    ///
+    /// A new function that can be used as an event listener. This function takes a reference to the event (`&E`)
+    /// and a mutable reference to the `AppContext`.
+    pub fn listener<E>(
+        &self,
+        callback: impl Fn(&mut T, &E, &mut Window, &mut ModelContext<T>) + 'static,
+    ) -> impl Fn(&E, &mut Window, &mut AppContext) {
+        let model = self.clone();
+        move |event: &E, window: &mut Window, cx: &mut AppContext| {
+            model.update(cx, |model, cx| {
+                callback(model, event, window, cx);
+            });
+        }
     }
 }
 

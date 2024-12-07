@@ -7,14 +7,14 @@ use editor::{
 };
 use language::{Point, Selection};
 use multi_buffer::MultiBufferRow;
-use ui::ViewContext;
+use ui::ModelContext;
 
 impl Vim {
     pub fn delete_motion(
         &mut self,
         motion: Motion,
         times: Option<usize>,
-        cx: &mut ViewContext<Self>,
+        cx: &mut ModelContext<Self>,
     ) {
         self.stop_recording(cx);
         self.update_editor(cx, |vim, editor, cx| {
@@ -76,7 +76,7 @@ impl Vim {
         });
     }
 
-    pub fn delete_object(&mut self, object: Object, around: bool, cx: &mut ViewContext<Self>) {
+    pub fn delete_object(&mut self, object: Object, around: bool, cx: &mut ModelContext<Self>) {
         self.stop_recording(cx);
         self.update_editor(cx, |vim, editor, cx| {
             editor.transact(cx, |editor, cx| {
