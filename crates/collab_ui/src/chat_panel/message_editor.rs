@@ -104,7 +104,7 @@ impl MessageEditor {
         editor: Model<Editor>,
         cx: &mut ModelContext<Self>,
     ) -> Self {
-        let this = cx.view().downgrade();
+        let this = cx.handle().downgrade();
         editor.update(cx, |editor, cx| {
             editor.set_soft_wrap_mode(SoftWrap::EditorWidth, cx);
             editor.set_use_autoclose(false);

@@ -79,7 +79,7 @@ pub fn init(cx: &mut AppContext) {
                 .as_singleton()
                 .and_then(|buffer| buffer.read(cx).project_path(cx));
 
-            let editor_handle = cx.view().downgrade();
+            let editor_handle = cx.handle().downgrade();
 
             if let (Some(project_path), Some(project)) = (project_path, project) {
                 let store = ReplStore::global(cx);
@@ -91,27 +91,27 @@ pub fn init(cx: &mut AppContext) {
             }
 
             editor
-                .ModelContext<Self>{
+                .register_action({
                     let editor_handle = editor_handle.clone();
                     move |_: &Run, cx| {
                         if !JupyterSettings::enabled(cx) {
                             return;
                         }
 
-                        crate::run(editor_handle.clone(), true, cx).log_err();
+                        crate::run(editor_handle.clone(), true, window, cx).log_err();
                     }
                 })
                 .detach();
 
             editor
-                .ModelContext<Self>{
+                .register_action({
                     let editor_handle = editor_handle.clone();
                     move |_: &RunInPlace, cx| {
                         if !JupyterSettings::enabled(cx) {
                             return;
                         }
 
-                        crate::run(editor_handle.clone(), false, cx).log_err();
+                        crate::run(editor_handle.clone(), false, window, cx).log_err();
                     }
                 })
                 .detach();
@@ -224,7 +224,7 @@ impl Render for ReplSessionsPage {
             return ReplSessionsContainer::new("No Jupyter Kernel Sessions").child(
                 v_flex()
                     .child(Label::new(instructions))
-                    .children(KeyBinding::for_action(&Run, cx)),
+                    .children(KeyBinding::for_action(&Run, window, cx)),
             );
         }
 
@@ -254,7 +254,7 @@ impl ParentElement for ReplSessionsContainer {
 }
 
 impl RenderOnce for ReplSessionsContainer {
-    fn render(self, _cx: &mut WindowContext) -> impl IntoElement {
+    fn render(self, _window: &mut Window, _cx: &mut AppContext) -> impl IntoElement {
         v_flex()
             .p_4()
             .gap_2()

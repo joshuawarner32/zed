@@ -8,7 +8,7 @@ use crate::story_selector::ComponentStory;
 pub struct KitchenSinkStory;
 
 impl KitchenSinkStory {
-    pub fn view(cx: &mut WindowContext) -> Model<Self> {
+    pub fn view(window: &mut Window, cx: &mut AppContext) -> Model<Self> {
         cx.new_model(|_cx| Self)
     }
 }
@@ -16,7 +16,7 @@ impl KitchenSinkStory {
 impl Render for KitchenSinkStory {
     fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let component_stories = ComponentStory::iter()
-            .map(|selector| selector.story(cx))
+            .map(|selector| selector.story(window, cx))
             .collect::<Vec<_>>();
 
         Story::container()

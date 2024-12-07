@@ -6,7 +6,7 @@ use editor::Editor;
 use fuzzy::{match_strings, StringMatch, StringMatchCandidate};
 use gpui::{
     actions, AppContext, DismissEvent, EventEmitter, FocusHandle, FocusableView, Model,
-    ParentElement, Render, Styled, View, ModelContext, VisualContext, WeakView,
+    ModelContext, ParentElement, Render, Styled, View, VisualContext, WeakView,
 };
 use language::{Buffer, LanguageRegistry};
 use picker::{Picker, PickerDelegate};
@@ -55,7 +55,7 @@ impl LanguageSelector {
         cx: &mut ModelContext<Self>,
     ) -> Self {
         let delegate = LanguageSelectorDelegate::new(
-            cx.view().downgrade(),
+            cx.handle().downgrade(),
             buffer,
             project,
             language_registry,
@@ -67,7 +67,7 @@ impl LanguageSelector {
 }
 
 impl Render for LanguageSelector {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex().w(rems(34.)).child(self.picker.clone())
     }
 }
@@ -120,7 +120,7 @@ impl LanguageSelectorDelegate {
 impl PickerDelegate for LanguageSelectorDelegate {
     type ListItem = ListItem;
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Select a language...".into()
     }
 

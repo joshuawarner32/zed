@@ -745,9 +745,9 @@ impl ProjectSearchView {
         subscriptions.push(cx.on_focus_in(&focus_handle, |this, cx| {
             if this.focus_handle.is_focused(cx) {
                 if this.has_matches() {
-                    this.results_editor.focus_handle(cx).focus(cx);
+                    this.results_editor.focus_handle(cx).focus(window);
                 } else {
-                    this.query_editor.focus_handle(cx).focus(cx);
+                    this.query_editor.focus_handle(cx).focus(window);
                 }
             }
         }));
@@ -784,7 +784,7 @@ impl ProjectSearchView {
             return;
         };
 
-        let weak_workspace = cx.view().downgrade();
+        let weak_workspace = cx.handle().downgrade();
 
         let model = cx.new_model(|cx| ProjectSearch::new(workspace.project().clone(), cx));
         let search = cx.new_model(|cx| ProjectSearchView::new(weak_workspace, model, cx, None));
@@ -837,7 +837,7 @@ impl ProjectSearchView {
                     model.search(new_query, cx);
                     model
                 });
-                let weak_workspace = cx.view().downgrade();
+                let weak_workspace = cx.handle().downgrade();
                 workspace.add_item_to_active_pane(
                     Box::new(
                         cx.new_model(|cx| ProjectSearchView::new(weak_workspace, model, cx, None)),
@@ -890,7 +890,7 @@ impl ProjectSearchView {
 
             let settings = settings.cloned();
 
-            let weak_workspace = cx.view().downgrade();
+            let weak_workspace = cx.handle().downgrade();
 
             let model = cx.new_model(|cx| ProjectSearch::new(workspace.project().clone(), cx));
             let view =
@@ -1317,7 +1317,7 @@ impl ProjectSearchBar {
     fn focus_search(&mut self, cx: &mut ModelContext<Self>) {
         if let Some(search_view) = self.active_project_search.as_ref() {
             search_view.update(cx, |search_view, cx| {
-                search_view.query_editor.focus_handle(cx).focus(cx);
+                search_view.query_editor.focus_handle(cx).focus(window);
             });
         }
     }
@@ -1642,7 +1642,7 @@ impl Render for ProjectSearchBar {
             .child(
                 IconButton::new("project-search-filter-button", IconName::Filter)
                     .shape(IconButtonShape::Square)
-                    .tooltip(|cx| Tooltip::for_action("Toggle Filters", &ToggleFilters, cx))
+                    .tooltip(|cx| Tooltip::for_action("Toggle Filters", &ToggleFilters, window, cx))
                     .on_click(cx.listener(|this, _, cx| {
                         this.toggle_filters(cx);
                     }))
@@ -1812,6 +1812,7 @@ impl Render for ProjectSearchBar {
                                             "Replace Next Match",
                                             &ReplaceNext,
                                             &focus_handle,
+                                            window,
                                             cx,
                                         )
                                     }
@@ -1834,6 +1835,7 @@ impl Render for ProjectSearchBar {
                                             "Replace All Matches",
                                             &ReplaceAll,
                                             &focus_handle,
+                                            window,
                                             cx,
                                         )
                                     }
@@ -3664,7 +3666,7 @@ pub mod tests {
         let buffer_search_query = "search bar query";
         buffer_search_bar
             .update(&mut cx, |buffer_search_bar, cx| {
-                buffer_search_bar.focus_handle(cx).focus(cx);
+                buffer_search_bar.focus_handle(cx).focus(window);
                 buffer_search_bar.search(buffer_search_query, None, cx)
             })
             .await

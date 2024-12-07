@@ -231,7 +231,7 @@ impl ProposedChangesEditor {
 }
 
 impl Render for ProposedChangesEditor {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         div()
             .size_full()
             .key_context("ProposedChangesEditor")
@@ -344,7 +344,7 @@ impl Render for ProposedChangesEditorToolbar {
                     .map(|binding| binding.into_any_element());
 
                 button_like.children(keybinding).on_click({
-                    move |_event, cx| focus_handle.dispatch_action(&ApplyAllDiffHunks, cx)
+                    move |_event, cx| focus_handle.dispatch_action(&ApplyAllDiffHunks, window, cx)
                 })
             }
             None => button_like.disabled(true),

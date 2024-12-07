@@ -3,8 +3,8 @@ use editor::{scroll::Autoscroll, Editor};
 use gpui::{
     actions, div, impl_actions, list, prelude::*, uniform_list, AnyElement, AppContext, ClickEvent,
     DismissEvent, EventEmitter, FocusHandle, FocusableView, Length, ListSizingBehavior, ListState,
-    MouseButton, MouseUpEvent, Render, ScrollStrategy, Task, UniformListScrollHandle, View,
-    ModelContext, WindowContext,
+    ModelContext, MouseButton, MouseUpEvent, Render, ScrollStrategy, Task, UniformListScrollHandle,
+    View, WindowContext,
 };
 use head::Head;
 use serde::Deserialize;
@@ -77,8 +77,8 @@ pub trait PickerDelegate: Sized + 'static {
     ) -> Option<Box<dyn Fn(&mut WindowContext) + 'static>> {
         None
     }
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str>;
-    fn no_matches_text(&self, _cx: &mut WindowContext) -> SharedString {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str>;
+    fn no_matches_text(&self, _window: &mut Window, _cx: &mut AppContext) -> SharedString {
         "No matches".into()
     }
     fn update_matches(&mut self, query: String, cx: &mut ModelContext<Picker<Self>>) -> Task<()>;
@@ -231,7 +231,7 @@ impl<D: PickerDelegate> Picker<D> {
                 ElementContainer::UniformList(UniformListScrollHandle::new())
             }
             ContainerKind::List => {
-                let view = cx.view().downgrade();
+                let view = cx.handle().downgrade();
                 ElementContainer::List(ListState::new(
                     0,
                     gpui::ListAlignment::Top,
@@ -265,8 +265,8 @@ impl<D: PickerDelegate> Picker<D> {
         self
     }
 
-    pub fn focus(&self, cx: &mut WindowContext) {
-        self.focus_handle(cx).focus(cx);
+    pub fn focus(&self, window: &mut Window, cx: &mut AppContext) {
+        self.focus_handle(cx).focus(window);
     }
 
     /// Handles the selecting an index, and passing the change to the delegate.
@@ -425,7 +425,7 @@ impl<D: PickerDelegate> Picker<D> {
         self.cancel(&menu::Cancel, cx);
     }
 
-    pub fn refresh_placeholder(&mut self, cx: &mut WindowContext<'_>) {
+    pub fn refresh_placeholder(&mut self, window: &mut Window, cx: &mut AppContext) {
         match &self.head {
             Head::Editor(view) => {
                 let placeholder = self.delegate.placeholder_text(cx);
@@ -493,7 +493,7 @@ impl<D: PickerDelegate> Picker<D> {
         }
     }
 
-    pub fn set_query(&self, query: impl Into<Arc<str>>, cx: &mut WindowContext<'_>) {
+    pub fn set_query(&self, query: impl Into<Arc<str>>, window: &mut Window, cx: &mut AppContext) {
         if let Head::Editor(ref editor) = &self.head {
             editor.update(cx, |editor, cx| {
                 editor.set_text(query, cx);
@@ -556,7 +556,7 @@ impl<D: PickerDelegate> Picker<D> {
         };
         match &self.element_container {
             ElementContainer::UniformList(scroll_handle) => uniform_list(
-                cx.view().clone(),
+                cx.handle().clone(),
                 "candidates",
                 self.delegate.match_count(),
                 move |picker, visible_range, cx| {

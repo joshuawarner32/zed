@@ -53,7 +53,7 @@ impl ChannelView {
         channel_id: ChannelId,
         link_position: Option<String>,
         workspace: Model<Workspace>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Task<Result<Model<Self>>> {
         let pane = workspace.read(cx).active_pane().clone();
         let channel_view = Self::open_in_pane(
@@ -83,7 +83,7 @@ impl ChannelView {
         link_position: Option<String>,
         pane: Model<Pane>,
         workspace: Model<Workspace>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Task<Result<Model<Self>>> {
         let channel_view = Self::load(channel_id, workspace, cx);
         cx.spawn(|mut cx| async move {
@@ -133,7 +133,7 @@ impl ChannelView {
     pub fn load(
         channel_id: ChannelId,
         workspace: Model<Workspace>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Task<Result<Model<Self>>> {
         let weak_workspace = workspace.downgrade();
         let workspace = workspace.read(cx);
@@ -175,7 +175,7 @@ impl ChannelView {
         cx: &mut ModelContext<Self>,
     ) -> Self {
         let buffer = channel_buffer.read(cx).buffer();
-        let this = cx.view().downgrade();
+        let this = cx.handle().downgrade();
         let editor = cx.new_model(|cx| {
             let mut editor = Editor::for_buffer(buffer, None, cx);
             editor.set_collaboration_hub(Box::new(ChannelBufferCollaborationHub(
@@ -518,7 +518,7 @@ impl FollowableItem for ChannelView {
         workspace: Model<workspace::Workspace>,
         remote_id: workspace::ViewId,
         state: &mut Option<proto::view::Variant>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Option<gpui::Task<anyhow::Result<Model<Self>>>> {
         let Some(proto::view::Variant::ChannelView(_)) = state else {
             return None;

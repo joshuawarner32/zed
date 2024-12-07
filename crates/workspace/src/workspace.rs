@@ -94,7 +94,7 @@ pub use toolbar::{Toolbar, ToolbarItemEvent, ToolbarItemLocation, ToolbarItemVie
 pub use ui;
 use ui::{
     div, h_flex, px, BorrowAppContext, Context as _, Div, FluentBuilder, InteractiveElement as _,
-    IntoElement, ParentElement as _, Pixels, SharedString, Styled as _, ModelContext,
+    IntoElement, ModelContext, ParentElement as _, Pixels, SharedString, Styled as _,
     VisualContext as _, WindowContext,
 };
 use util::{ResultExt, TryFutureExt};
@@ -441,7 +441,8 @@ impl FollowableViewRegistry {
         workspace: Model<Workspace>,
         view_id: ViewId,
         mut state: Option<proto::view::Variant>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<Task<Result<Box<dyn FollowableItemHandle>>>> {
         cx.update_default_global(|this: &mut Self, cx| {
             this.0.values().find_map(|descriptor| {
@@ -505,7 +506,8 @@ impl SerializableItemRegistry {
         item_kind: &str,
         workspace_id: WorkspaceId,
         loaded_items: Vec<ItemId>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<()>> {
         let Some(descriptor) = Self::descriptor(item_kind, cx) else {
             return Task::ready(Err(anyhow!(
@@ -645,7 +647,9 @@ impl DelayedDebouncedEditAction {
 
     fn fire_new<F>(&mut self, delay: Duration, cx: &mut ModelContext<Workspace>, func: F)
     where
-        F: 'static + Send + FnOnce(&mut Workspace, &mut ModelContext<Workspace>) -> Task<Result<()>>,
+        F: 'static
+            + Send
+            + FnOnce(&mut Workspace, &mut ModelContext<Workspace>) -> Task<Result<()>>,
     {
         if let Some(channel) = self.cancel_channel.take() {
             _ = channel.send(());
@@ -883,7 +887,7 @@ impl Workspace {
         })
         .detach();
 
-        let weak_handle = cx.view().downgrade();
+        let weak_handle = cx.handle().downgrade();
         let pane_history_timestamp = Arc::new(AtomicUsize::new(0));
 
         let center_pane = cx.new_model(|cx| {
@@ -939,8 +943,9 @@ impl Workspace {
         let left_dock = Dock::new(DockPosition::Left, cx);
         let bottom_dock = Dock::new(DockPosition::Bottom, cx);
         let right_dock = Dock::new(DockPosition::Right, cx);
-        let left_dock_buttons = cx.new_model(|cx| PanelButtons::new(left_dock.clone(), cx));
-        let bottom_dock_buttons = cx.new_model(|cx| PanelButtons::new(bottom_dock.clone(), cx));
+        let left_dock_buttons = cx.new_model(|cx| PanelButtons::new(left_dock.clone(), window, cx));
+        let bottom_dock_buttons =
+            cx.new_model(|cx| PanelButtons::new(bottom_dock.clone(), window, cx));
         let right_dock_buttons = cx.new_model(|cx| PanelButtons::new(right_dock.clone(), cx));
         let status_bar = cx.new_model(|cx| {
             let mut status_bar = StatusBar::new(&center_pane.clone(), cx);
@@ -1354,7 +1359,7 @@ impl Workspace {
     ) -> Task<Result<()>> {
         let to_load = if let Some(pane) = pane.upgrade() {
             pane.update(cx, |pane, cx| {
-                pane.focus(cx);
+                pane.focus(window);
                 loop {
                     // Retrieve the weak item handle from the history.
                     let entry = pane.nav_history_mut().pop(mode, cx)?;
@@ -2172,7 +2177,8 @@ impl Workspace {
     pub fn save_active_item(
         &mut self,
         save_intent: SaveIntent,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<()>> {
         let project = self.project.clone();
         let pane = self.active_pane();
@@ -2284,7 +2290,7 @@ impl Workspace {
 
             if let Some(active_panel) = dock.active_panel() {
                 if was_visible {
-                    if active_panel.focus_handle(cx).contains_focused(cx) {
+                    if active_panel.focus_handle(cx).contains_focused(window) {
                         focus_center = true;
                     }
                 } else {
@@ -2300,7 +2306,7 @@ impl Workspace {
         }
 
         if focus_center {
-            self.active_pane.update(cx, |pane, cx| pane.focus(cx))
+            self.active_pane.update(cx, |pane, cx| pane.focus(window))
         }
 
         cx.notify();
@@ -2331,7 +2337,7 @@ impl Workspace {
     /// already focused, then transfer focus back to the workspace center.
     pub fn toggle_panel_focus<T: Panel>(&mut self, cx: &mut ModelContext<Self>) {
         self.focus_or_unfocus_panel::<T>(cx, |panel, cx| {
-            !panel.focus_handle(cx).contains_focused(cx)
+            !panel.focus_handle(cx).contains_focused(window)
         });
     }
 
@@ -2378,7 +2384,7 @@ impl Workspace {
                     if let Some(panel) = panel.as_ref() {
                         if should_focus(&**panel, cx) {
                             dock.set_open(true, cx);
-                            panel.focus_handle(cx).focus(cx);
+                            panel.focus_handle(cx).focus(window);
                         } else {
                             focus_center = true;
                         }
@@ -2387,7 +2393,7 @@ impl Workspace {
                 });
 
                 if focus_center {
-                    self.active_pane.update(cx, |pane, cx| pane.focus(cx))
+                    self.active_pane.update(cx, |pane, cx| pane.focus(window))
                 }
 
                 result_panel = panel;
@@ -2441,7 +2447,7 @@ impl Workspace {
                 if Some(dock.position()) != dock_to_reveal {
                     if let Some(panel) = dock.active_panel() {
                         if panel.is_zoomed(cx) {
-                            focus_center |= panel.focus_handle(cx).contains_focused(cx);
+                            focus_center |= panel.focus_handle(cx).contains_focused(window);
                             dock.set_open(false, cx);
                         }
                     }
@@ -2450,7 +2456,7 @@ impl Workspace {
         }
 
         if focus_center {
-            self.active_pane.update(cx, |pane, cx| pane.focus(cx))
+            self.active_pane.update(cx, |pane, cx| pane.focus(window))
         }
 
         if self.zoomed_position != dock_to_reveal {
@@ -2502,7 +2508,8 @@ impl Workspace {
         item: Box<dyn ItemHandle>,
         destination_index: Option<usize>,
         focus_item: bool,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) {
         self.add_item(
             self.active_pane.clone(),
@@ -2521,7 +2528,8 @@ impl Workspace {
         destination_index: Option<usize>,
         activate_pane: bool,
         focus_item: bool,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) {
         if let Some(text) = item.telemetry_event_text(cx) {
             self.client()
@@ -2603,7 +2611,8 @@ impl Workspace {
         path: impl Into<ProjectPath>,
         pane: Option<WeakModel<Pane>>,
         focus_item: bool,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<Box<dyn ItemHandle>, anyhow::Error>> {
         self.open_path_preview(path, pane, focus_item, false, cx)
     }
@@ -2614,7 +2623,8 @@ impl Workspace {
         pane: Option<WeakModel<Pane>>,
         focus_item: bool,
         allow_preview: bool,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<Box<dyn ItemHandle>, anyhow::Error>> {
         let pane = pane.unwrap_or_else(|| {
             self.last_active_center_pane.clone().unwrap_or_else(|| {
@@ -2694,7 +2704,8 @@ impl Workspace {
     fn load_path(
         &mut self,
         path: ProjectPath,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<(Option<ProjectEntryId>, WorkspaceItemBuilder)>> {
         let project = self.project().clone();
         let project_item_builders = cx.default_global::<ProjectItemOpeners>().clone();
@@ -2802,7 +2813,8 @@ impl Workspace {
         item: &dyn ItemHandle,
         activate_pane: bool,
         focus_item: bool,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> bool {
         let result = self.panes.iter().find_map(|pane| {
             pane.read(cx)
@@ -2828,7 +2840,7 @@ impl Workspace {
         }
     }
 
-    pub fn activate_next_pane(&mut self, cx: &mut WindowContext) {
+    pub fn activate_next_pane(&mut self, window: &mut Window, cx: &mut AppContext) {
         let panes = self.center.panes();
         if let Some(ix) = panes.iter().position(|pane| **pane == self.active_pane) {
             let next_ix = (ix + 1) % panes.len();
@@ -2837,7 +2849,7 @@ impl Workspace {
         }
     }
 
-    pub fn activate_previous_pane(&mut self, cx: &mut WindowContext) {
+    pub fn activate_previous_pane(&mut self, window: &mut Window, cx: &mut AppContext) {
         let panes = self.center.panes();
         if let Some(ix) = panes.iter().position(|pane| **pane == self.active_pane) {
             let prev_ix = cmp::min(ix.wrapping_sub(1), panes.len() - 1);
@@ -2849,7 +2861,8 @@ impl Workspace {
     pub fn activate_pane_in_direction(
         &mut self,
         direction: SplitDirection,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) {
         use ActivateInDirectionTarget as Target;
         enum Origin {
@@ -2937,7 +2950,7 @@ impl Workspace {
             Some(ActivateInDirectionTarget::Pane(pane)) => cx.focus_view(&pane),
             Some(ActivateInDirectionTarget::Dock(dock)) => {
                 if let Some(panel) = dock.read(cx).active_panel() {
-                    panel.focus_handle(cx).focus(cx);
+                    panel.focus_handle(cx).focus(window);
                 } else {
                     log::error!("Could not find a focus target when in switching focus in {direction} direction for a {:?} dock", dock.read(cx).position());
                 }
@@ -3095,7 +3108,7 @@ impl Workspace {
             pane::Event::ZoomIn => {
                 if pane == self.active_pane {
                     pane.update(cx, |pane, cx| pane.set_zoomed(true, cx));
-                    if pane.read(cx).has_focus(cx) {
+                    if pane.read(cx).has_focus(window) {
                         self.zoomed = Some(pane.downgrade().into());
                         self.zoomed_position = None;
                         cx.emit(Event::ZoomChanged);
@@ -3463,7 +3476,7 @@ impl Workspace {
         self.update_window_title(cx);
     }
 
-    fn update_window_title(&mut self, cx: &mut WindowContext) {
+    fn update_window_title(&mut self, window: &mut Window, cx: &mut AppContext) {
         let project = self.project().read(cx);
         let mut title = String::new();
 
@@ -3507,7 +3520,7 @@ impl Workspace {
         cx.set_window_title(&title);
     }
 
-    fn update_window_edited(&mut self, cx: &mut WindowContext) {
+    fn update_window_edited(&mut self, window: &mut Window, cx: &mut AppContext) {
         let is_edited = !self.project.read(cx).is_disconnected(cx)
             && self
                 .items(cx)
@@ -3769,7 +3782,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn update_active_view_for_followers(&mut self, cx: &mut WindowContext) {
+    pub fn update_active_view_for_followers(&mut self, window: &mut Window, cx: &mut AppContext) {
         let mut is_project_item = true;
         let mut update = proto::UpdateActiveView::default();
         if cx.is_window_active() {
@@ -3822,7 +3835,8 @@ impl Workspace {
 
     fn active_item_for_followers(
         &self,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> (Option<Box<dyn ItemHandle>>, Option<proto::PanelId>) {
         let mut active_item = None;
         let mut panel_id = None;
@@ -3850,7 +3864,8 @@ impl Workspace {
         &self,
         project_only: bool,
         update: proto::update_followers::Variant,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<()> {
         // If this update only applies to for followers in the current project,
         // then skip it unless this project is shared. If it applies to all
@@ -3916,7 +3931,7 @@ impl Workspace {
 
         let (panel_id, item) = item_to_activate?;
 
-        let mut transfer_focus = state.center_pane.read(cx).has_focus(cx);
+        let mut transfer_focus = state.center_pane.read(cx).has_focus(window);
         let pane;
         if let Some(panel_id) = panel_id {
             pane = self.activate_panel_for_proto_id(panel_id, cx)?.pane(cx)?;
@@ -3926,12 +3941,12 @@ impl Workspace {
             pane = state.center_pane.clone();
             let state = self.follower_states.get_mut(&leader_id)?;
             if let Some(dock_pane) = state.dock_pane.take() {
-                transfer_focus |= dock_pane.focus_handle(cx).contains_focused(cx);
+                transfer_focus |= dock_pane.focus_handle(cx).contains_focused(window);
             }
         }
 
         pane.update(cx, |pane, cx| {
-            let focus_active_item = pane.has_focus(cx) || transfer_focus;
+            let focus_active_item = pane.has_focus(window) || transfer_focus;
             if let Some(index) = pane.index_for_item(item.as_ref()) {
                 pane.activate_item(index, false, false, cx);
             } else {
@@ -3950,7 +3965,8 @@ impl Workspace {
         &self,
         peer_id: PeerId,
         pane: &Model<Pane>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<Model<SharedScreen>> {
         let call = self.active_call()?;
         let room = call.read(cx).room()?.read(cx);
@@ -4047,7 +4063,7 @@ impl Workspace {
         }
     }
 
-    fn remove_from_session(&mut self, cx: &mut WindowContext) -> Task<()> {
+    fn remove_from_session(&mut self, window: &mut Window, cx: &mut AppContext) -> Task<()> {
         self.session_id.take();
         self.serialize_workspace_internal(cx)
     }
@@ -4060,12 +4076,12 @@ impl Workspace {
     ) {
         self.panes.retain(|p| p != pane);
         if let Some(focus_on) = focus_on {
-            focus_on.update(cx, |pane, cx| pane.focus(cx));
+            focus_on.update(cx, |pane, cx| pane.focus(window));
         } else {
             self.panes
                 .last()
                 .unwrap()
-                .update(cx, |pane, cx| pane.focus(cx));
+                .update(cx, |pane, cx| pane.focus(window));
         }
         if self.last_active_center_pane == Some(pane.downgrade()) {
             self.last_active_center_pane = None;
@@ -4088,7 +4104,7 @@ impl Workspace {
         }
     }
 
-    fn serialize_workspace_internal(&self, cx: &mut WindowContext) -> Task<()> {
+    fn serialize_workspace_internal(&self, window: &mut Window, cx: &mut AppContext) -> Task<()> {
         let Some(database_id) = self.database_id() else {
             return Task::ready(());
         };
@@ -4110,7 +4126,7 @@ impl Workspace {
                             })
                         })
                         .collect::<Vec<_>>(),
-                    pane.has_focus(cx),
+                    pane.has_focus(window),
                     pane.pinned_count(),
                 )
             };
@@ -4142,7 +4158,11 @@ impl Workspace {
             }
         }
 
-        fn build_serialized_docks(this: &Workspace, cx: &mut WindowContext) -> DockStructure {
+        fn build_serialized_docks(
+            this: &Workspace,
+            window: &mut Window,
+            cx: &mut AppContext,
+        ) -> DockStructure {
             let left_dock = this.left_dock.read(cx);
             let left_visible = left_dock.is_open();
             let left_active_panel = left_dock
@@ -4488,7 +4508,9 @@ impl Workspace {
             session,
         });
         let workspace = Self::new(Default::default(), project, app_state, cx);
-        workspace.active_pane.update(cx, |pane, cx| pane.focus(cx));
+        workspace
+            .active_pane
+            .update(cx, |pane, cx| pane.focus(window));
         workspace
     }
 
@@ -4522,8 +4544,12 @@ impl Workspace {
         self.modal_layer.read(cx).active_modal()
     }
 
-    pub fn toggle_modal<V: ModalView, B>(&mut self, cx: &mut WindowContext, build: B)
-    where
+    pub fn toggle_modal<V: ModalView, B>(
+        &mut self,
+        window: &mut Window,
+        cx: &mut AppContext,
+        build: B,
+    ) where
         B: FnOnce(&mut ModelContext<V>) -> V,
     {
         self.modal_layer
@@ -4576,7 +4602,7 @@ impl Workspace {
         )
     }
 
-    pub fn for_window(cx: &mut WindowContext) -> Option<Model<Workspace>> {
+    pub fn for_window(window: &mut Window, cx: &mut AppContext) -> Option<Model<Workspace>> {
         let window = cx.window_handle().downcast::<Workspace>()?;
         cx.read_window(&window, |workspace, _| workspace).ok()
     }
@@ -4760,7 +4786,7 @@ impl FocusableView for Workspace {
 struct DraggedDock(DockPosition);
 
 impl Render for Workspace {
-    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let mut context = KeyContext::new_with_defaults();
         context.add("Workspace");
         context.set("keyboard_layout", cx.keyboard_layout().clone());
@@ -4825,7 +4851,7 @@ impl Render for Workspace {
                                 .border_b_1()
                                 .border_color(colors.border)
                                 .child({
-                                    let this = cx.view().clone();
+                                    let this = cx.handle().clone();
                                     canvas(
                                         move |bounds, cx| {
                                             this.update(cx, |this, cx| {
@@ -5889,7 +5915,11 @@ fn parse_pixel_size_env_var(value: &str) -> Option<Size<Pixels>> {
     Some(size(px(width as f32), px(height as f32)))
 }
 
-pub fn client_side_decorations(element: impl IntoElement, cx: &mut WindowContext) -> Stateful<Div> {
+pub fn client_side_decorations(
+    element: impl IntoElement,
+    window: &mut Window,
+    cx: &mut AppContext,
+) -> Stateful<Div> {
     const BORDER_SIZE: Pixels = px(1.0);
     let decorations = cx.window_decorations();
 
@@ -6107,7 +6137,12 @@ fn resize_edge(
     }
 }
 
-fn join_pane_into_active(active_pane: &Model<Pane>, pane: &Model<Pane>, cx: &mut WindowContext<'_>) {
+fn join_pane_into_active(
+    active_pane: &Model<Pane>,
+    pane: &Model<Pane>,
+    window: &mut Window,
+    cx: &mut AppContext,
+) {
     if pane == active_pane {
         return;
     } else if pane.read(cx).items_len() == 0 {
@@ -6121,7 +6156,12 @@ fn join_pane_into_active(active_pane: &Model<Pane>, pane: &Model<Pane>, cx: &mut
     }
 }
 
-fn move_all_items(from_pane: &Model<Pane>, to_pane: &Model<Pane>, cx: &mut WindowContext<'_>) {
+fn move_all_items(
+    from_pane: &Model<Pane>,
+    to_pane: &Model<Pane>,
+    window: &mut Window,
+    cx: &mut AppContext,
+) {
     let destination_is_different = from_pane != to_pane;
     let mut moved_items = 0;
     for (item_ix, item_handle) in from_pane
@@ -6143,7 +6183,7 @@ fn move_all_items(from_pane: &Model<Pane>, to_pane: &Model<Pane>, cx: &mut Windo
         // This automatically removes duplicate items in the pane
         to_pane.update(cx, |destination, cx| {
             destination.add_item(item_handle, true, true, None, cx);
-            destination.focus(cx)
+            destination.focus(window)
         });
     }
 }
@@ -6153,7 +6193,8 @@ pub fn move_item(
     destination: &Model<Pane>,
     item_id_to_move: EntityId,
     destination_index: usize,
-    cx: &mut WindowContext<'_>,
+    window: &mut Window,
+    cx: &mut AppContext,
 ) {
     let Some((item_ix, item_handle)) = source
         .read(cx)
@@ -6176,7 +6217,7 @@ pub fn move_item(
     // This automatically removes duplicate items in the pane
     destination.update(cx, |destination, cx| {
         destination.add_item(item_handle, true, true, Some(destination_index), cx);
-        destination.focus(cx)
+        destination.focus(window)
     });
 }
 
@@ -7169,7 +7210,7 @@ mod tests {
 
     impl TestModal {
         fn new(cx: &mut ModelContext<Self>) -> Self {
-            Self(cx.focus_handle())
+            Self(window.focus_handle())
         }
     }
 
@@ -7463,7 +7504,11 @@ mod tests {
         }
 
         impl Render for TestPngItemView {
-            fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+            fn render(
+                &mut self,
+                _window: &mut Window,
+                _cx: &mut ModelContext<Self>,
+            ) -> impl IntoElement {
                 Empty
             }
         }
@@ -7480,7 +7525,7 @@ mod tests {
                 Self: Sized,
             {
                 Self {
-                    focus_handle: cx.focus_handle(),
+                    focus_handle: window.focus_handle(),
                 }
             }
         }
@@ -7525,7 +7570,11 @@ mod tests {
         }
 
         impl Render for TestIpynbItemView {
-            fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+            fn render(
+                &mut self,
+                _window: &mut Window,
+                _cx: &mut ModelContext<Self>,
+            ) -> impl IntoElement {
                 Empty
             }
         }
@@ -7542,7 +7591,7 @@ mod tests {
                 Self: Sized,
             {
                 Self {
-                    focus_handle: cx.focus_handle(),
+                    focus_handle: window.focus_handle(),
                 }
             }
         }
@@ -7563,7 +7612,11 @@ mod tests {
         }
 
         impl Render for TestAlternatePngItemView {
-            fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+            fn render(
+                &mut self,
+                _window: &mut Window,
+                _cx: &mut ModelContext<Self>,
+            ) -> impl IntoElement {
                 Empty
             }
         }
@@ -7580,7 +7633,7 @@ mod tests {
                 Self: Sized,
             {
                 Self {
-                    focus_handle: cx.focus_handle(),
+                    focus_handle: window.focus_handle(),
                 }
             }
         }

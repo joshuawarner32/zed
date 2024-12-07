@@ -61,7 +61,7 @@ impl FollowableItem for Editor {
         workspace: Model<Workspace>,
         remote_id: ViewId,
         state: &mut Option<proto::view::Variant>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Option<Task<Result<Model<Self>>>> {
         let project = workspace.read(cx).project().to_owned();
         let Some(proto::view::Variant::Editor(_)) = state else {
@@ -944,7 +944,7 @@ impl SerializableItem for Editor {
     fn cleanup(
         workspace_id: WorkspaceId,
         alive_items: Vec<ItemId>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Task<Result<()>> {
         cx.spawn(|_| DB.delete_unloaded_items(workspace_id, alive_items))
     }

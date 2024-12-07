@@ -75,10 +75,11 @@ use gpui::{
     AppContext, AsyncWindowContext, AvailableSpace, BackgroundExecutor, Bounds, ClipboardEntry,
     ClipboardItem, Context, DispatchPhase, ElementId, EventEmitter, FocusHandle, FocusOutEvent,
     FocusableView, FontId, FontWeight, Global, HighlightStyle, Hsla, InteractiveText, KeyContext,
-    ListSizingBehavior, Model, ModelContext, MouseButton, PaintQuad, ParentElement, Pixels, Render,
-    ScrollStrategy, SharedString, Size, StrikethroughStyle, Styled, StyledText, Subscription, Task,
-    TextStyle, TextStyleRefinement, UTF16Selection, UnderlineStyle, UniformListScrollHandle, View,
-    ModelContext, ViewInputHandler, VisualContext, WeakFocusHandle, WeakView, WindowContext,
+    ListSizingBehavior, Model, ModelContext, ModelContext, MouseButton, PaintQuad, ParentElement,
+    Pixels, Render, ScrollStrategy, SharedString, Size, StrikethroughStyle, Styled, StyledText,
+    Subscription, Task, TextStyle, TextStyleRefinement, UTF16Selection, UnderlineStyle,
+    UniformListScrollHandle, View, ViewInputHandler, VisualContext, WeakFocusHandle, WeakView,
+    WindowContext,
 };
 use highlight_matching_bracket::refresh_matching_bracket_highlights;
 use hover_popover::{hide_hover, HoverState};
@@ -195,7 +196,8 @@ pub fn render_parsed_markdown(
     parsed: &language::ParsedMarkdown,
     editor_style: &EditorStyle,
     workspace: Option<WeakModel<Workspace>>,
-    cx: &mut WindowContext,
+    window: &mut Window,
+    cx: &mut AppContext,
 ) -> InteractiveText {
     let code_span_background_color = cx
         .theme()
@@ -539,7 +541,8 @@ pub trait ActiveLineTrailerProvider {
         &mut self,
         style: &EditorStyle,
         focus_handle: &FocusHandle,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<AnyElement>;
 }
 
@@ -1319,7 +1322,7 @@ impl CompletionsMenu {
         };
 
         let list = uniform_list(
-            cx.view().clone(),
+            cx.handle().clone(),
             "completions",
             matches.len(),
             move |_editor, range, cx| {
@@ -1704,7 +1707,7 @@ impl CodeActionsMenu {
         let actions = self.actions.clone();
         let selected_item = self.selected_item;
         let element = uniform_list(
-            cx.view().clone(),
+            cx.handle().clone(),
             "code_actions_menu",
             self.actions.len(),
             move |_this, range, cx| {
@@ -1961,7 +1964,7 @@ impl Editor {
     ) -> Self {
         let style = cx.text_style();
         let font_size = style.font_size.to_pixels(cx.rem_size());
-        let editor = cx.view().downgrade();
+        let editor = cx.handle().downgrade();
         let fold_placeholder = FoldPlaceholder {
             constrain_width: true,
             render: Arc::new(move |fold_id, fold_range, cx| {
@@ -2396,7 +2399,7 @@ impl Editor {
         self.buffer().read(cx).title(cx)
     }
 
-    pub fn snapshot(&mut self, cx: &mut WindowContext) -> EditorSnapshot {
+    pub fn snapshot(&mut self, window: &mut Window, cx: &mut AppContext) -> EditorSnapshot {
         let git_blame_gutter_max_author_length = self
             .render_git_blame_gutter(cx)
             .then(|| {
@@ -5604,7 +5607,7 @@ impl Editor {
                         }
                     })
                     .on_click(cx.listener(move |editor, _e, cx| {
-                        editor.focus(cx);
+                        editor.focus(window);
                         editor.toggle_code_actions(
                             &ToggleCodeActions {
                                 deployed_from_indicator: Some(row),
@@ -5768,7 +5771,7 @@ impl Editor {
             .icon_color(Color::Muted)
             .selected(is_active)
             .on_click(cx.listener(move |editor, _e, cx| {
-                editor.focus(cx);
+                editor.focus(window);
                 editor.toggle_code_actions(
                     &ToggleCodeActions {
                         deployed_from_indicator: Some(row),
@@ -6623,7 +6626,7 @@ impl Editor {
             .to_path_buf();
             Some(parent)
         }) {
-            cx.dispatch_action(OpenTerminal { working_directory }.boxed_clone());
+            window.dispatch_action(OpenTerminal { working_directory }.boxed_clone(), cx);
         }
     }
 
@@ -11909,11 +11912,11 @@ impl Editor {
         self.blame.as_ref()
     }
 
-    pub fn render_git_blame_gutter(&mut self, cx: &mut WindowContext) -> bool {
+    pub fn render_git_blame_gutter(&mut self, window: &mut Window, cx: &mut AppContext) -> bool {
         self.show_git_blame_gutter && self.has_blame_entries(cx)
     }
 
-    pub fn render_git_blame_inline(&mut self, cx: &mut WindowContext) -> bool {
+    pub fn render_git_blame_inline(&mut self, window: &mut Window, cx: &mut AppContext) -> bool {
         self.show_git_blame_inline
             && self.focus_handle.is_focused(cx)
             && !self.newest_selection_head_on_empty_line(cx)
@@ -11923,7 +11926,8 @@ impl Editor {
     pub fn render_active_line_trailer(
         &mut self,
         style: &EditorStyle,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<AnyElement> {
         let selection = self.selections.newest::<Point>(cx);
         if !selection.is_empty() {
@@ -11943,12 +11947,16 @@ impl Editor {
             .render_active_line_trailer(style, &focus_handle, cx)
     }
 
-    fn has_blame_entries(&self, cx: &mut WindowContext) -> bool {
+    fn has_blame_entries(&self, window: &mut Window, cx: &mut AppContext) -> bool {
         self.blame()
             .map_or(false, |blame| blame.read(cx).has_generated_entries())
     }
 
-    fn newest_selection_head_on_empty_line(&mut self, cx: &mut WindowContext) -> bool {
+    fn newest_selection_head_on_empty_line(
+        &mut self,
+        window: &mut Window,
+        cx: &mut AppContext,
+    ) -> bool {
         let cursor_anchor = self.selections.newest_anchor().head();
 
         let snapshot = self.buffer.read(cx).snapshot(cx);
@@ -12214,7 +12222,8 @@ impl Editor {
     /// Allows to ignore certain kinds of highlights.
     pub fn highlighted_display_rows(
         &mut self,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> BTreeMap<DisplayRow, Hsla> {
         let snapshot = self.snapshot(cx);
         let mut used_highlight_orders = HashMap::default();
@@ -13180,7 +13189,7 @@ impl Editor {
         supports
     }
 
-    pub fn focus(&self, cx: &mut WindowContext) {
+    pub fn focus(&self, window: &mut Window, cx: &mut AppContext) {
         cx.focus(&self.focus_handle)
     }
 
@@ -13247,7 +13256,7 @@ impl Editor {
 
     pub fn register_action<A: Action>(
         &mut self,
-        listener: impl Fn(&A, &mut WindowContext) + 'static,
+        listener: impl Fn(&A, &mut Window, &mut AppContext) + 'static,
     ) -> Subscription {
         let id = self.next_editor_action_id.post_inc();
         let listener = Arc::new(listener);
@@ -13824,7 +13833,8 @@ pub trait CodeActionProvider {
         &self,
         buffer: &Model<Buffer>,
         range: Range<text::Anchor>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<Vec<CodeAction>>>;
 
     fn apply_code_action(
@@ -13833,7 +13843,8 @@ pub trait CodeActionProvider {
         action: CodeAction,
         excerpt_id: ExcerptId,
         push_to_history: bool,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<ProjectTransaction>>;
 }
 
@@ -13842,7 +13853,8 @@ impl CodeActionProvider for Model<Project> {
         &self,
         buffer: &Model<Buffer>,
         range: Range<text::Anchor>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<Vec<CodeAction>>> {
         self.update(cx, |project, cx| {
             project.code_actions(buffer, range, None, cx)
@@ -13855,7 +13867,8 @@ impl CodeActionProvider for Model<Project> {
         action: CodeAction,
         _excerpt_id: ExcerptId,
         push_to_history: bool,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<ProjectTransaction>> {
         self.update(cx, |project, cx| {
             project.apply_code_action(buffer_handle, action, push_to_history, cx)
@@ -14293,7 +14306,8 @@ impl EditorSnapshot {
         buffer_row: MultiBufferRow,
         row_contains_cursor: bool,
         editor: Model<Editor>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<AnyElement> {
         let folded = self.is_line_folded(buffer_row);
         let mut is_foldable = false;
@@ -14306,17 +14320,18 @@ impl EditorSnapshot {
             match crease {
                 Crease::Inline { render_toggle, .. } | Crease::Block { render_toggle, .. } => {
                     if let Some(render_toggle) = render_toggle {
-                        let toggle_callback = Arc::new(move |folded, cx: &mut WindowContext| {
-                            if folded {
-                                editor.update(cx, |editor, cx| {
-                                    editor.fold_at(&crate::FoldAt { buffer_row }, cx)
-                                });
-                            } else {
-                                editor.update(cx, |editor, cx| {
-                                    editor.unfold_at(&crate::UnfoldAt { buffer_row }, cx)
-                                });
-                            }
-                        });
+                        let toggle_callback =
+                            Arc::new(move |folded, window: &mut Window, cx: &mut AppContext| {
+                                if folded {
+                                    editor.update(cx, |editor, cx| {
+                                        editor.fold_at(&crate::FoldAt { buffer_row }, cx)
+                                    });
+                                } else {
+                                    editor.update(cx, |editor, cx| {
+                                        editor.unfold_at(&crate::UnfoldAt { buffer_row }, cx)
+                                    });
+                                }
+                            });
                         return Some((render_toggle)(buffer_row, folded, toggle_callback, cx));
                     }
                 }
@@ -14346,7 +14361,8 @@ impl EditorSnapshot {
     pub fn render_crease_trailer(
         &self,
         buffer_row: MultiBufferRow,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<AnyElement> {
         let folded = self.is_line_folded(buffer_row);
         if let Crease::Inline { render_trailer, .. } = self
@@ -14467,7 +14483,7 @@ impl Render for Editor {
         };
 
         EditorElement::new(
-            cx.view(),
+            &cx.handle(),
             EditorStyle {
                 background,
                 local_player: cx.theme().players().local(),
@@ -14890,7 +14906,7 @@ pub fn diagnostic_block_renderer(
                         .style(ButtonStyle::Transparent)
                         .visible_on_hover(group_id.clone())
                         .on_click(move |_click, cx| cx.dispatch_action(Box::new(Cancel)))
-                        .tooltip(|cx| Tooltip::for_action("Close Diagnostics", &Cancel, cx))
+                        .tooltip(|cx| Tooltip::for_action("Close Diagnostics", &Cancel, window, cx))
                 }))
             })
             .child(
@@ -14909,9 +14925,11 @@ pub fn diagnostic_block_renderer(
             )
         };
 
-        let icon_size = buttons(&diagnostic)
-            .into_any_element()
-            .layout_as_root(AvailableSpace::min_size(), cx);
+        let icon_size = buttons(&diagnostic).into_any_element().layout_as_root(
+            AvailableSpace::min_size(),
+            window,
+            cx,
+        );
 
         h_flex()
             .id(cx.block_id)

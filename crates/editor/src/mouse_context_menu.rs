@@ -6,7 +6,7 @@ use crate::{
     SelectMode, ToDisplayPoint, ToggleCodeActions,
 };
 use gpui::prelude::FluentBuilder;
-use gpui::{DismissEvent, Pixels, Point, Subscription, View, ModelContext};
+use gpui::{DismissEvent, ModelContext, Pixels, Point, Subscription, View};
 use std::ops::Range;
 use text::PointUtf16;
 use workspace::OpenInTerminal;
@@ -56,7 +56,7 @@ impl MouseContextMenu {
             move |editor, _, _event: &DismissEvent, cx| {
                 editor.mouse_context_menu.take();
                 if context_menu_focus.contains_focused(cx) {
-                    editor.focus(cx);
+                    editor.focus(window);
                 }
             },
         );
@@ -89,7 +89,7 @@ impl MouseContextMenu {
             move |editor, _, _event: &DismissEvent, cx| {
                 editor.mouse_context_menu.take();
                 if context_menu_focus.contains_focused(cx) {
-                    editor.focus(cx);
+                    editor.focus(window);
                 }
             },
         );
@@ -124,7 +124,7 @@ pub fn deploy_context_menu(
     cx: &mut ModelContext<Editor>,
 ) {
     if !editor.is_focused(cx) {
-        editor.focus(cx);
+        editor.focus(window);
     }
 
     // Don't show context menu for inline editors

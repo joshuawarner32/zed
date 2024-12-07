@@ -989,8 +989,9 @@ fn log_contents<T: Message>(lines: &VecDeque<T>, cmp: <T as Message>::Level) -> 
 
 impl Render for LspLogView {
     fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
-        self.editor
-            .update(cx, |editor, cx| editor.render(cx).into_any_element())
+        self.editor.update(cx, |editor, cx| {
+            editor.render(window, cx).into_any_element()
+        })
     }
 }
 
@@ -1146,7 +1147,7 @@ impl Render for LspLogToolbarItemView {
             }
         });
 
-        let log_toolbar_view = cx.view().clone();
+        let log_toolbar_view = cx.handle().clone();
         let lsp_menu = PopoverMenu::new("LspLogView")
             .anchor(AnchorCorner::TopLeft)
             .trigger(Button::new(
@@ -1301,7 +1302,7 @@ impl Render for LspLogToolbarItemView {
                             .menu({
                                 let log_view = log_view.clone();
 
-                                move |cx| {
+                                move |window, cx| {
                                     let id = log_view.read(cx).current_server_id?;
 
                                     let trace_level = log_view.update(cx, |this, cx| {
@@ -1352,7 +1353,7 @@ impl Render for LspLogToolbarItemView {
                             .menu({
                                 let log_view = log_view.clone();
 
-                                move |cx| {
+                                move |window, cx| {
                                     let id = log_view.read(cx).current_server_id?;
 
                                     let log_level = log_view.update(cx, |this, cx| {

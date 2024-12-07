@@ -8,7 +8,7 @@ use db::sqlez::{
     bindable::{Bind, Column, StaticColumnCount},
     statement::Statement,
 };
-use gpui::{AsyncWindowContext, Model, View, WeakView};
+use gpui::{AsyncWindowContext, Model, WeakView};
 use project::Project;
 use remote::ssh_session::SshProjectId;
 use serde::{Deserialize, Serialize};
@@ -334,7 +334,11 @@ impl SerializedPaneGroup {
         workspace_id: WorkspaceId,
         workspace: WeakModel<Workspace>,
         cx: &mut AsyncWindowContext,
-    ) -> Option<(Member, Option<Model<Pane>>, Vec<Option<Box<dyn ItemHandle>>>)> {
+    ) -> Option<(
+        Member,
+        Option<Model<Pane>>,
+        Vec<Option<Box<dyn ItemHandle>>>,
+    )> {
         match self {
             SerializedPaneGroup::Group {
                 axis,

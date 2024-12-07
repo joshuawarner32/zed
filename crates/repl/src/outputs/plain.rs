@@ -57,7 +57,7 @@ const DEFAULT_NUM_LINES: usize = 32;
 const DEFAULT_NUM_COLUMNS: usize = 128;
 
 /// Returns the default text style for the terminal output.
-pub fn text_style(cx: &mut WindowContext) -> TextStyle {
+pub fn text_style(window: &mut Window, cx: &mut AppContext) -> TextStyle {
     let settings = ThemeSettings::get_global(cx).clone();
 
     let font_family = settings.buffer_font.family;
@@ -88,7 +88,7 @@ pub fn text_style(cx: &mut WindowContext) -> TextStyle {
 }
 
 /// Returns the default terminal size for the terminal output.
-pub fn terminal_size(cx: &mut WindowContext) -> terminal::TerminalSize {
+pub fn terminal_size(window: &mut Window, cx: &mut AppContext) -> terminal::TerminalSize {
     let text_style = text_style(cx);
     let text_system = cx.text_system();
 
@@ -122,7 +122,7 @@ impl TerminalOutput {
     /// This method initializes a new terminal emulator with default configuration
     /// and sets up the necessary components for handling terminal events and rendering.
     ///
-    pub fn new(cx: &mut WindowContext) -> Self {
+    pub fn new(window: &mut Window, cx: &mut AppContext) -> Self {
         let (events_tx, events_rx) = futures::channel::mpsc::unbounded();
         let term = alacritty_terminal::Term::new(
             Config::default(),
@@ -150,7 +150,7 @@ impl TerminalOutput {
     /// # Returns
     ///
     /// A new instance of `TerminalOutput` containing the provided text.
-    pub fn from(text: &str, cx: &mut WindowContext) -> Self {
+    pub fn from(text: &str, window: &mut Window, cx: &mut AppContext) -> Self {
         let mut output = Self::new(cx);
         output.append_text(text, cx);
         output
@@ -182,7 +182,7 @@ impl TerminalOutput {
     /// # Arguments
     ///
     /// * `text` - A string slice containing the text to be appended.
-    pub fn append_text(&mut self, text: &str, cx: &mut WindowContext) {
+    pub fn append_text(&mut self, text: &str, window: &mut Window, cx: &mut AppContext) {
         for byte in text.as_bytes() {
             if *byte == b'\n' {
                 // Dirty (?) hack to move the cursor down
@@ -322,7 +322,11 @@ impl OutputContent for TerminalOutput {
         true
     }
 
-    fn buffer_content(&mut self, cx: &mut WindowContext) -> Option<Model<Buffer>> {
+    fn buffer_content(
+        &mut self,
+        window: &mut Window,
+        cx: &mut AppContext,
+    ) -> Option<Model<Buffer>> {
         if self.full_buffer.as_ref().is_some() {
             return self.full_buffer.clone();
         }

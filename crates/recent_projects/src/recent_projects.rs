@@ -7,7 +7,7 @@ use disconnected_overlay::DisconnectedOverlay;
 use fuzzy::{StringMatch, StringMatchCandidate};
 use gpui::{
     Action, AnyElement, AppContext, DismissEvent, EventEmitter, FocusHandle, FocusableView,
-    Subscription, Task, View, ModelContext, WeakView,
+    ModelContext, Subscription, Task, View, WeakView,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -102,7 +102,7 @@ impl RecentProjects {
         create_new_window: bool,
         cx: &mut ModelContext<Workspace>,
     ) {
-        let weak = cx.view().downgrade();
+        let weak = cx.handle().downgrade();
         workspace.toggle_modal(cx, |cx| {
             let delegate = RecentProjectsDelegate::new(weak, create_new_window, true);
 
@@ -170,7 +170,7 @@ impl EventEmitter<DismissEvent> for RecentProjectsDelegate {}
 impl PickerDelegate for RecentProjectsDelegate {
     type ListItem = ListItem;
 
-    fn placeholder_text(&self, cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, window: &mut Window, cx: &mut AppContext) -> Arc<str> {
         let (create_window, reuse_window) = if self.create_new_window {
             (
                 cx.keystroke_text_for_action(&menu::Confirm),
@@ -346,7 +346,7 @@ impl PickerDelegate for RecentProjectsDelegate {
 
     fn dismissed(&mut self, _: &mut ModelContext<Picker<Self>>) {}
 
-    fn no_matches_text(&self, _cx: &mut WindowContext) -> SharedString {
+    fn no_matches_text(&self, _window: &mut Window, _cx: &mut AppContext) -> SharedString {
         if self.workspaces.is_empty() {
             "Recently opened projects will show up here".into()
         } else {
@@ -420,7 +420,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                             if !self.render_paths {
                                 highlighted.paths.clear();
                             }
-                            highlighted.render(cx)
+                            highlighted.render(window, cx)
                         }),
                 )
                 .map(|el| {
@@ -465,12 +465,12 @@ impl PickerDelegate for RecentProjectsDelegate {
                 .border_color(cx.theme().colors().border_variant)
                 .child(
                     Button::new("remote", "Open Remote Folder")
-                        .key_binding(KeyBinding::for_action(&OpenRemote, cx))
+                        .key_binding(KeyBinding::for_action(&OpenRemote, window, cx))
                         .on_click(|_, cx| cx.dispatch_action(OpenRemote.boxed_clone())),
                 )
                 .child(
                     Button::new("local", "Open Local Folder")
-                        .key_binding(KeyBinding::for_action(&workspace::Open, cx))
+                        .key_binding(KeyBinding::for_action(&workspace::Open, window, cx))
                         .on_click(|_, cx| cx.dispatch_action(workspace::Open.boxed_clone())),
                 )
                 .into_any(),

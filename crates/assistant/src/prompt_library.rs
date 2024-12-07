@@ -159,7 +159,7 @@ impl PickerDelegate for PromptPickerDelegate {
         self.matches.len()
     }
 
-    fn no_matches_text(&self, _cx: &mut WindowContext) -> SharedString {
+    fn no_matches_text(&self, _window: &mut Window, _cx: &mut AppContext) -> SharedString {
         if self.store.prompt_count() == 0 {
             "No prompts.".into()
         } else {
@@ -180,7 +180,7 @@ impl PickerDelegate for PromptPickerDelegate {
         }
     }
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Search...".into()
     }
 
@@ -327,7 +327,7 @@ impl PromptLibrary {
             let picker = Picker::uniform_list(delegate, cx)
                 .modal(false)
                 .max_height(None);
-            picker.focus(cx);
+            picker.focus(window);
             picker
         });
         Self {
@@ -484,7 +484,7 @@ impl PromptLibrary {
             if focus {
                 prompt_editor
                     .body_editor
-                    .update(cx, |editor, cx| editor.focus(cx));
+                    .update(cx, |editor, cx| editor.focus(window));
             }
             self.set_active_prompt(Some(prompt_id), cx);
         } else if let Some(prompt_metadata) = self.store.metadata(prompt_id) {
@@ -532,7 +532,7 @@ impl PromptLibrary {
                                 ),
                             )));
                             if focus {
-                                editor.focus(cx);
+                                editor.focus(window);
                             }
                             editor
                         });
@@ -591,7 +591,7 @@ impl PromptLibrary {
                     }
                 }
             } else {
-                picker.focus(cx);
+                picker.focus(window);
             }
         });
         cx.notify();
@@ -672,13 +672,13 @@ impl PromptLibrary {
         if let Some(active_prompt) = self.active_prompt_id {
             self.prompt_editors[&active_prompt]
                 .body_editor
-                .update(cx, |editor, cx| editor.focus(cx));
+                .update(cx, |editor, cx| editor.focus(window));
             cx.stop_propagation();
         }
     }
 
     fn focus_picker(&mut self, _: &menu::Cancel, cx: &mut ModelContext<Self>) {
-        self.picker.update(cx, |picker, cx| picker.focus(cx));
+        self.picker.update(cx, |picker, cx| picker.focus(window));
     }
 
     pub fn inline_assist(&mut self, action: &InlineAssist, cx: &mut ModelContext<Self>) {

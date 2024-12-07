@@ -247,12 +247,12 @@ impl TitleBar {
     }
 
     #[cfg(not(target_os = "windows"))]
-    pub fn height(cx: &mut WindowContext) -> Pixels {
+    pub fn height(window: &mut Window, cx: &mut AppContext) -> Pixels {
         (1.75 * cx.rem_size()).max(px(34.))
     }
 
     #[cfg(target_os = "windows")]
-    pub fn height(_cx: &mut WindowContext) -> Pixels {
+    pub fn height(_window: &mut Window, _cx: &mut Context) -> Pixels {
         // todo(windows) instead of hard coded size report the actual size to the Windows platform API
         px(32.)
     }
@@ -319,7 +319,13 @@ impl TitleBar {
                         .child(Label::new(nickname.clone()).size(LabelSize::Small)),
                 )
                 .tooltip(move |window, cx| {
-                    Tooltip::with_meta("Remote Project", Some(&OpenRemote), meta.clone(), cx)
+                    Tooltip::with_meta(
+                        "Remote Project",
+                        Some(&OpenRemote),
+                        meta.clone(),
+                        window,
+                        cx,
+                    )
                 })
                 .on_click(|_, cx| {
                     cx.dispatch_action(OpenRemote.boxed_clone());
@@ -531,7 +537,7 @@ impl TitleBar {
                                     return;
                                 }
                             }
-                            auto_update::check(&Default::default(), cx);
+                            auto_update::check(&Default::default(), window, cx);
                         })
                         .into_any_element(),
                 )

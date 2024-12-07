@@ -3,8 +3,8 @@ use copilot::{Copilot, Status};
 use editor::{scroll::Autoscroll, Editor};
 use fs::Fs;
 use gpui::{
-    div, Action, AnchorCorner, AppContext, AsyncWindowContext, Entity, IntoElement, ParentElement,
-    Render, Subscription, View, ModelContext, WeakView, WindowContext,
+    div, Action, AnchorCorner, AppContext, AsyncWindowContext, Entity, IntoElement, ModelContext,
+    ParentElement, Render, Subscription, View, WeakView, WindowContext,
 };
 use language::{
     language_settings::{
@@ -46,7 +46,7 @@ enum SupermavenButtonStatus {
 }
 
 impl Render for InlineCompletionButton {
-    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let all_language_settings = all_language_settings(None, cx);
 
         match all_language_settings.inline_completions.provider {
@@ -78,7 +78,7 @@ impl Render for InlineCompletionButton {
                     return div().child(
                         IconButton::new("copilot-error", icon)
                             .icon_size(IconSize::Small)
-                            .on_click(cx.listener(move |_, _, cx| {
+                            .on_click(cx.listener(move |_, _, window, cx| {
                                 if let Some(workspace) = cx.window_handle().downcast::<Workspace>()
                                 {
                                     workspace
@@ -106,7 +106,7 @@ impl Render for InlineCompletionButton {
                             .tooltip(|cx| Tooltip::text("GitHub Copilot", cx)),
                     );
                 }
-                let this = cx.view().clone();
+                let this = cx.handle().clone();
 
                 div().child(
                     PopoverMenu::new("copilot")
@@ -155,7 +155,7 @@ impl Render for InlineCompletionButton {
 
                 let icon = status.to_icon();
                 let tooltip_text = status.to_tooltip();
-                let this = cx.view().clone();
+                let this = cx.handle().clone();
                 let fs = self.fs.clone();
 
                 return div().child(
@@ -239,7 +239,7 @@ impl InlineCompletionButton {
     pub fn build_language_settings_menu(
         &self,
         mut menu: ContextMenu,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> ContextMenu {
         let fs = self.fs.clone();
 

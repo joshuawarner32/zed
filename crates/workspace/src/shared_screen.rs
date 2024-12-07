@@ -8,8 +8,7 @@ use client::{proto::PeerId, User};
 use futures::StreamExt;
 use gpui::{
     div, surface, AppContext, EventEmitter, FocusHandle, FocusableView, InteractiveElement,
-    ModelContext, ParentElement, Render, SharedString, Styled, Task, View, VisualContext,
-    WindowContext,
+    ModelContext, ParentElement, Render, SharedString, Styled, Task, VisualContext, WindowContext,
 };
 use std::sync::{Arc, Weak};
 use ui::{prelude::*, Icon, IconName};
@@ -35,7 +34,7 @@ impl SharedScreen {
         user: Arc<User>,
         cx: &mut ModelContext<Self>,
     ) -> Self {
-        cx.focus_handle();
+        window.focus_handle();
         let mut frames = track.frames();
         Self {
             track: Arc::downgrade(track),
@@ -53,7 +52,7 @@ impl SharedScreen {
                 this.update(&mut cx, |_, cx| cx.emit(Event::Close))?;
                 Ok(())
             }),
-            focus: cx.focus_handle(),
+            focus: window.focus_handle(),
         }
     }
 }
@@ -66,7 +65,7 @@ impl FocusableView for SharedScreen {
     }
 }
 impl Render for SharedScreen {
-    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         div()
             .bg(cx.theme().colors().editor_background)
             .track_focus(&self.focus)

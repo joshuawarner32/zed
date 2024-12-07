@@ -88,7 +88,12 @@ impl Replayer {
         })))
     }
 
-    pub fn replay(&mut self, actions: Vec<ReplayableAction>, cx: &mut WindowContext) {
+    pub fn replay(
+        &mut self,
+        actions: Vec<ReplayableAction>,
+        window: &mut Window,
+        cx: &mut AppContext,
+    ) {
         let mut lock = self.0.borrow_mut();
         let range = lock.ix..lock.ix;
         lock.actions.splice(range, actions);
@@ -104,7 +109,7 @@ impl Replayer {
         self.0.borrow_mut().actions.clear()
     }
 
-    pub fn next(self, cx: &mut WindowContext) {
+    pub fn next(self, window: &mut Window, cx: &mut AppContext) {
         let mut lock = self.0.borrow_mut();
         let action = if lock.ix < 10000 {
             lock.actions.get(lock.ix).cloned()
@@ -180,7 +185,7 @@ impl Vim {
 
         globals.last_replayed_register = Some(register);
         let mut replayer = globals.replayer.get_or_insert_with(Replayer::new).clone();
-        replayer.replay(repeated_actions, cx);
+        replayer.replay(repeated_actions, window, cx);
     }
 
     pub(crate) fn repeat(&mut self, from_insert_mode: bool, cx: &mut ModelContext<Self>) {
@@ -317,7 +322,7 @@ impl Vim {
         let globals = Vim::globals(cx);
         globals.dot_replaying = true;
         let mut replayer = globals.replayer.get_or_insert_with(Replayer::new).clone();
-        replayer.replay(actions, cx);
+        replayer.replay(actions, window, cx);
     }
 }
 

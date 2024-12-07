@@ -68,7 +68,7 @@ pub fn init(_: Arc<AppState>, cx: &mut AppContext) {
     .detach();
 }
 
-pub fn new_journal_entry(workspace: &Workspace, cx: &mut WindowContext) {
+pub fn new_journal_entry(workspace: &Workspace, window: &mut Window, cx: &mut AppContext) {
     let settings = JournalSettings::get_global(cx);
     let journal_dir = match journal_dir(settings.path.as_ref().unwrap()) {
         Some(journal_dir) => journal_dir,

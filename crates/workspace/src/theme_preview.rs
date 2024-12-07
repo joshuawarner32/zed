@@ -510,18 +510,18 @@ impl ThemePreview {
             .overflow_scroll()
             .size_full()
             .gap_2()
-            .child(ContentGroup::render_component_previews(cx))
-            .child(IconDecoration::render_component_previews(cx))
-            .child(DecoratedIcon::render_component_previews(cx))
-            .child(Checkbox::render_component_previews(cx))
-            .child(CheckboxWithLabel::render_component_previews(cx))
-            .child(Facepile::render_component_previews(cx))
-            .child(Button::render_component_previews(cx))
-            .child(Indicator::render_component_previews(cx))
-            .child(Icon::render_component_previews(cx))
-            .child(Table::render_component_previews(cx))
-            .child(self.render_avatars(cx))
-            .child(self.render_buttons(layer, cx))
+            .child(ContentGroup::render_component_previews(window, cx))
+            .child(IconDecoration::render_component_previews(window, cx))
+            .child(DecoratedIcon::render_component_previews(window, cx))
+            .child(Checkbox::render_component_previews(window, cx))
+            .child(CheckboxWithLabel::render_component_previews(window, cx))
+            .child(Facepile::render_component_previews(window, cx))
+            .child(Button::render_component_previews(window, cx))
+            .child(Indicator::render_component_previews(window, cx))
+            .child(Icon::render_component_previews(window, cx))
+            .child(Table::render_component_previews(window, cx))
+            .child(self.render_avatars(window, cx))
+            .child(self.render_buttons(layer, window, cx))
     }
 
     fn render_page_nav(&self, cx: &ModelContext<Self>) -> impl IntoElement {
@@ -544,7 +544,7 @@ impl ThemePreview {
 }
 
 impl Render for ThemePreview {
-    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl ui::IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> impl ui::IntoElement {
         v_flex()
             .id("theme-preview")
             .key_context("ThemePreview")

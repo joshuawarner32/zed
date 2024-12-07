@@ -7,9 +7,9 @@ use editor::{actions::SelectAll, scroll::Autoscroll, Editor};
 use futures::{stream::FuturesUnordered, StreamExt};
 use gpui::{
     anchored, deferred, div, impl_actions, AnyElement, AppContext, DismissEvent, EventEmitter,
-    FocusHandle, FocusableView, KeyContext, KeyDownEvent, Keystroke, Model, MouseButton,
-    MouseDownEvent, Pixels, Render, ScrollWheelEvent, Styled, Subscription, Task, View,
-    VisualContext, WeakView,
+    FocusHandle, FocusableView, KeyContext, KeyDownEvent, Keystroke, Model, ModelContext,
+    MouseButton, MouseDownEvent, Pixels, Render, ScrollWheelEvent, Styled, Subscription, Task,
+    View, VisualContext, WeakView,
 };
 use language::Bias;
 use persistence::TERMINAL_DB;
@@ -152,7 +152,7 @@ impl TerminalView {
                     cx,
                 )
             });
-            workspace.add_item_to_active_pane(Box::new(view), None, true, cx);
+            workspace.add_item_to_active_pane(Box::new(view), None, true, window, cx);
         }
     }
 
@@ -350,6 +350,8 @@ impl TerminalView {
                     Pixels::ZERO,
                     cmp::min(self.scroll_top - y_delta, self.max_scroll_top(cx)),
                 );
+                // todo: Remove this!
+                let cx: &mut ModelContext<Self> = cx;
                 cx.notify();
                 return;
             }
@@ -968,7 +970,7 @@ impl TerminalView {
 impl Render for TerminalView {
     fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let terminal_handle = self.terminal.clone();
-        let terminal_view_handle = cx.view().clone();
+        let terminal_view_handle = cx.handle().clone();
 
         let focused = self.focus_handle.is_focused(cx);
 
@@ -1185,7 +1187,8 @@ impl SerializableItem for TerminalView {
     fn cleanup(
         workspace_id: WorkspaceId,
         alive_items: Vec<workspace::ItemId>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<gpui::Result<()>> {
         cx.spawn(|_| TERMINAL_DB.delete_unloaded_items(workspace_id, alive_items))
     }

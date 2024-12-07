@@ -12,7 +12,7 @@ use command_palette_hooks::{
 use fuzzy::{StringMatch, StringMatchCandidate};
 use gpui::{
     Action, AppContext, DismissEvent, EventEmitter, FocusHandle, FocusableView, Global,
-    ParentElement, Render, Styled, Task, UpdateGlobal, View, ModelContext, VisualContext, WeakView,
+    ModelContext, ParentElement, Render, Styled, Task, UpdateGlobal, View, VisualContext, WeakView,
 };
 use picker::{Picker, PickerDelegate};
 
@@ -93,7 +93,7 @@ impl CommandPalette {
             .collect();
 
         let delegate = CommandPaletteDelegate::new(
-            cx.view().downgrade(),
+            cx.handle().downgrade(),
             commands,
             telemetry,
             previous_focus_handle,
@@ -122,7 +122,7 @@ impl FocusableView for CommandPalette {
 }
 
 impl Render for CommandPalette {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex().w(rems(34.)).child(self.picker.clone())
     }
 }
@@ -241,7 +241,7 @@ impl CommandPaletteDelegate {
 impl PickerDelegate for CommandPaletteDelegate {
     type ListItem = ListItem;
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Execute a command...".into()
     }
 
@@ -382,7 +382,7 @@ impl PickerDelegate for CommandPaletteDelegate {
         let action = command.action;
         cx.focus(&self.previous_focus_handle);
         self.dismissed(cx);
-        cx.dispatch_action(action);
+        window.dispatch_action(action, cx);
     }
 
     fn render_match(
@@ -492,7 +492,7 @@ mod tests {
 
         workspace.update(cx, |workspace, cx| {
             workspace.add_item_to_active_pane(Box::new(editor.clone()), None, true, cx);
-            editor.update(cx, |editor, cx| editor.focus(cx))
+            editor.update(cx, |editor, cx| editor.focus(window))
         });
 
         cx.simulate_keystrokes("cmd-shift-p");

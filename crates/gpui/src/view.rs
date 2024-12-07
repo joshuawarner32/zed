@@ -2,8 +2,8 @@ use crate::Empty;
 use crate::{
     seal::Sealed, AnyElement, AnyModel, AnyWeakModel, AppContext, Bounds, ContentMask, Element,
     ElementId, Entity, EntityId, Flatten, FocusHandle, FocusableView, GlobalElementId, IntoElement,
-    LayoutId, Model, PaintIndex, Pixels, PrepaintStateIndex, Render, Style, StyleRefinement,
-    TextStyle, ModelContext, VisualContext, WeakModel, WindowContext,
+    LayoutId, Model, ModelContext, PaintIndex, Pixels, PrepaintStateIndex, Render, Style,
+    StyleRefinement, TextStyle, VisualContext, WeakModel, WindowContext,
 };
 use anyhow::{Context, Result};
 use refineable::Refineable;
@@ -101,7 +101,8 @@ impl<V: Render> Element for Model<V> {
     fn request_layout(
         &mut self,
         _id: Option<&GlobalElementId>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> (LayoutId, Self::RequestLayoutState) {
         let mut element = self.update(cx, |view, cx| view.render(cx).into_any_element());
         let layout_id = element.request_layout(cx);
@@ -113,7 +114,8 @@ impl<V: Render> Element for Model<V> {
         _id: Option<&GlobalElementId>,
         _: Bounds<Pixels>,
         element: &mut Self::RequestLayoutState,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) {
         cx.set_view_id(self.entity_id());
         element.prepaint(cx);
@@ -125,7 +127,8 @@ impl<V: Render> Element for Model<V> {
         _: Bounds<Pixels>,
         element: &mut Self::RequestLayoutState,
         _: &mut Self::PrepaintState,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) {
         element.paint(cx);
     }
@@ -299,7 +302,8 @@ impl Element for AnyView {
     fn request_layout(
         &mut self,
         _id: Option<&GlobalElementId>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> (LayoutId, Self::RequestLayoutState) {
         if let Some(style) = self.cached_style.as_ref() {
             let mut root_style = Style::default();
@@ -318,7 +322,8 @@ impl Element for AnyView {
         global_id: Option<&GlobalElementId>,
         bounds: Bounds<Pixels>,
         element: &mut Self::RequestLayoutState,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<AnyElement> {
         cx.set_view_id(self.entity_id());
         if self.cached_style.is_some() {
@@ -373,7 +378,8 @@ impl Element for AnyView {
         _bounds: Bounds<Pixels>,
         _: &mut Self::RequestLayoutState,
         element: &mut Self::PrepaintState,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) {
         if self.cached_style.is_some() {
             cx.with_element_state::<AnyViewState, _>(global_id.unwrap(), |element_state, cx| {
@@ -460,7 +466,8 @@ mod any_view {
 
     pub(crate) fn render<V: 'static + Render>(
         view: &AnyView,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> AnyElement {
         let view = view.clone().downcast::<V>().unwrap();
         view.update(cx, |view, cx| view.render(cx).into_any_element())
@@ -471,7 +478,7 @@ mod any_view {
 pub struct EmptyView;
 
 impl Render for EmptyView {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         Empty
     }
 }

@@ -65,7 +65,7 @@ impl HighlightedMatchWithPaths {
 }
 
 impl RenderOnce for HighlightedMatchWithPaths {
-    fn render(mut self, _: &mut WindowContext) -> impl IntoElement {
+    fn render(mut self, _window: &mut Window, _cx: &mut AppContext) -> impl IntoElement {
         v_flex()
             .child(self.match_label.clone())
             .when(!self.paths.is_empty(), |this| {

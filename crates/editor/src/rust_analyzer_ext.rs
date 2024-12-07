@@ -18,7 +18,7 @@ fn is_rust_language(language: &Language) -> bool {
     language.name() == "Rust".into()
 }
 
-pub fn apply_related_actions(editor: &Model<Editor>, cx: &mut WindowContext) {
+pub fn apply_related_actions(editor: &Model<Editor>, window: &mut Window, cx: &mut AppContext) {
     if editor
         .update(cx, |e, cx| {
             find_specific_language_server_in_selection(e, cx, is_rust_language, RUST_ANALYZER_NAME)

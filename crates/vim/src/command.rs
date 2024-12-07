@@ -114,7 +114,7 @@ pub fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
     Vim::action(editor, cx, |vim, action: &GoToLine, cx| {
         vim.switch_mode(Mode::Normal, false, cx);
         let result = vim.update_editor(cx, |vim, editor, cx| {
-            action.range.head().buffer_row(vim, editor, cx)
+            action.range.head().buffer_row(vim, editor, window, cx)
         });
         let buffer_row = match result {
             None => return,
@@ -135,7 +135,7 @@ pub fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
     Vim::action(editor, cx, |vim, action: &YankCommand, cx| {
         vim.update_editor(cx, |vim, editor, cx| {
             let snapshot = editor.snapshot(cx);
-            if let Ok(range) = action.range.buffer_range(vim, editor, cx) {
+            if let Ok(range) = action.range.buffer_range(vim, editor, cwindow, x) {
                 let end = if range.end < snapshot.max_buffer_row() {
                     Point::new(range.end.0 + 1, 0)
                 } else {
@@ -160,7 +160,7 @@ pub fn register(editor: &mut Editor, cx: &mut ModelContext<Vim>) {
 
     Vim::action(editor, cx, |vim, action: &WithRange, cx| {
         let result = vim.update_editor(cx, |vim, editor, cx| {
-            action.range.buffer_range(vim, editor, cx)
+            action.range.buffer_range(vim, editor, window, cx)
         });
 
         let range = match result {
@@ -423,7 +423,8 @@ impl Position {
         &self,
         vim: &Vim,
         editor: &mut Editor,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Result<MultiBufferRow> {
         let snapshot = editor.snapshot(cx);
         let target = match self {
@@ -467,11 +468,12 @@ impl CommandRange {
         &self,
         vim: &Vim,
         editor: &mut Editor,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Result<Range<MultiBufferRow>> {
-        let start = self.start.buffer_row(vim, editor, cx)?;
+        let start = self.start.buffer_row(vim, editor, cwindow, x)?;
         let end = if let Some(end) = self.end.as_ref() {
-            end.buffer_row(vim, editor, cx)?
+            end.buffer_row(vim, editor, window, cx)?
         } else {
             start
         };

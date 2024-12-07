@@ -18,7 +18,7 @@ use editor::{
 };
 use futures::FutureExt as _;
 use gpui::{
-    div, prelude::*, EventEmitter, Model, Render, Subscription, Task, View, ModelContext, WeakView,
+    div, prelude::*, EventEmitter, Model, ModelContext, Render, Subscription, Task, View, WeakView,
 };
 use language::Point;
 use project::Fs;
@@ -122,7 +122,7 @@ impl EditorBlock {
     ) -> RenderBlock {
         Arc::new(move |cx: &mut BlockContext| {
             let execution_view = execution_view.clone();
-            let text_style = crate::outputs::plain::text_style(cx);
+            let text_style = crate::outputs::plain::text_style(window, cx);
 
             let gutter = cx.gutter_dimensions;
 
@@ -243,7 +243,7 @@ impl Session {
             cx.entity_id().to_string(),
         );
 
-        let session_view = cx.view().clone();
+        let session_view = cx.handle().clone();
 
         let kernel = match self.kernel_specification.clone() {
             KernelSpecification::Jupyter(kernel_specification)
@@ -339,7 +339,11 @@ impl Session {
         }
     }
 
-    fn send(&mut self, message: JupyterMessage, _cx: &mut ModelContext<Self>) -> anyhow::Result<()> {
+    fn send(
+        &mut self,
+        message: JupyterMessage,
+        _cx: &mut ModelContext<Self>,
+    ) -> anyhow::Result<()> {
         if let Kernel::RunningKernel(kernel) = &mut self.kernel {
             kernel.request_tx().try_send(message).ok();
         }
@@ -412,11 +416,11 @@ impl Session {
         };
 
         let parent_message_id = message.header.msg_id.clone();
-        let session_view = cx.view().downgrade();
+        let session_view = cx.handle().downgrade();
         let weak_editor = self.editor.clone();
 
-        let on_close: CloseBlockFn =
-            Arc::new(move |block_id: CustomBlockId, cx: &mut WindowContext| {
+        let on_close: CloseBlockFn = Arc::new(
+            move |block_id: CustomBlockId, window: &mut Window, cx: &mut AppContext| {
                 if let Some(session) = session_view.upgrade() {
                     session.update(cx, |session, cx| {
                         session.blocks.remove(&parent_message_id);
@@ -431,7 +435,8 @@ impl Session {
                         editor.remove_blocks(block_ids, None, cx);
                     });
                 }
-            });
+            },
+        );
 
         let Ok(editor_block) =
             EditorBlock::new(self.editor.clone(), anchor_range, status, on_close, cx)
@@ -558,7 +563,7 @@ impl Session {
             Kernel::RunningKernel(mut kernel) => {
                 let mut request_tx = kernel.request_tx().clone();
 
-                let forced = kernel.force_shutdown(cx);
+                let forced = kernel.force_shutdown(window, cx);
 
                 cx.spawn(|this, mut cx| async move {
                     let message: JupyterMessage = ShutdownRequest { restart: false }.into();
@@ -595,7 +600,7 @@ impl Session {
             Kernel::RunningKernel(mut kernel) => {
                 let mut request_tx = kernel.request_tx().clone();
 
-                let forced = kernel.force_shutdown(cx);
+                let forced = kernel.force_shutdown(window, cx);
 
                 cx.spawn(|this, mut cx| async move {
                     // Send shutdown request with restart flag

@@ -21,7 +21,7 @@ trait StatusItemViewHandle: Send {
     fn set_active_pane_item(
         &self,
         active_pane_item: Option<&dyn ItemHandle>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     );
     fn item_type(&self) -> TypeId;
 }
@@ -34,7 +34,7 @@ pub struct StatusBar {
 }
 
 impl Render for StatusBar {
-    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         h_flex()
             .w_full()
             .justify_between()
@@ -187,7 +187,7 @@ impl<T: StatusItemView> StatusItemViewHandle for Model<T> {
     fn set_active_pane_item(
         &self,
         active_pane_item: Option<&dyn ItemHandle>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) {
         self.update(cx, |this, cx| {
             this.set_active_pane_item(active_pane_item, cx)

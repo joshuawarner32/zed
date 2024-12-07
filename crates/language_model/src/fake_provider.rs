@@ -4,7 +4,7 @@ use crate::{
     LanguageModelProviderState, LanguageModelRequest,
 };
 use futures::{channel::mpsc, future::BoxFuture, stream::BoxStream, FutureExt, StreamExt};
-use gpui::{AnyView, AppContext, AsyncAppContext, Task};
+use gpui::{AnyModel, AnyView, AppContext, AsyncAppContext, Task};
 use http_client::Result;
 use parking_lot::Mutex;
 use serde::Serialize;
@@ -59,7 +59,7 @@ impl LanguageModelProvider for FakeLanguageModelProvider {
         Task::ready(Ok(()))
     }
 
-    fn configuration_view(&self, _: &mut WindowContext) -> AnyModel {
+    fn configuration_view(&self, _: &mut Window, _: &mut AppContext) -> AnyView {
         unimplemented!()
     }
 

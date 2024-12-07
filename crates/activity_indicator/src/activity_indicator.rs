@@ -4,8 +4,8 @@ use extension_host::ExtensionStore;
 use futures::StreamExt;
 use gpui::{
     actions, percentage, Animation, AnimationExt as _, AppContext, CursorStyle, EventEmitter,
-    InteractiveElement as _, Model, ParentElement as _, Render, SharedString,
-    StatefulInteractiveElement, Styled, Transformation, View, ModelContext, VisualContext as _,
+    InteractiveElement as _, Model, ModelContext, ParentElement as _, Render, SharedString,
+    StatefulInteractiveElement, Styled, Transformation, View, VisualContext as _,
 };
 use language::{LanguageRegistry, LanguageServerBinaryStatus, LanguageServerId};
 use lsp::LanguageServerName;
@@ -464,7 +464,7 @@ impl Render for ActivityIndicator {
         let Some(content) = self.content_to_render(cx) else {
             return result;
         };
-        let this = cx.view().downgrade();
+        let this = cx.handle().downgrade();
         let truncate_content = content.message.len() > MAX_MESSAGE_LEN;
         result.gap_2().child(
             PopoverMenu::new("activity-indicator-popover")
@@ -534,7 +534,7 @@ impl Render for ActivityIndicator {
                                                     cx,
                                                 );
                                             });
-                                            this.context_menu_handle.hide(cx);
+                                            this.context_menu_handle.hide(window, cx);
                                             cx.notify();
                                         })
                                         .ok();

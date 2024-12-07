@@ -20,7 +20,7 @@ pub fn init(cx: &mut AppContext) {
         |workspace: &mut Workspace, _: &mut ModelContext<Workspace>| {
             workspace.register_action(|workspace, _: &workspace::ToggleProjectSymbols, cx| {
                 let project = workspace.project().clone();
-                let handle = cx.view().downgrade();
+                let handle = cx.handle().downgrade();
                 workspace.toggle_modal(cx, move |cx| {
                     let delegate = ProjectSymbolsDelegate::new(handle, project);
                     Picker::uniform_list(delegate, cx).width(rems(34.))
@@ -104,7 +104,7 @@ impl ProjectSymbolsDelegate {
 
 impl PickerDelegate for ProjectSymbolsDelegate {
     type ListItem = ListItem;
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Search project symbols...".into()
     }
 

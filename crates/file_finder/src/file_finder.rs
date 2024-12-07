@@ -15,8 +15,8 @@ use file_icons::FileIcons;
 use fuzzy::{CharBag, PathMatch, PathMatchCandidate};
 use gpui::{
     actions, Action, AnyElement, AppContext, DismissEvent, EventEmitter, FocusHandle,
-    FocusableView, KeyContext, Model, Modifiers, ModifiersChangedEvent, ParentElement, Render,
-    Styled, Task, View, ModelContext, VisualContext, WeakView,
+    FocusableView, KeyContext, Model, ModelContext, Modifiers, ModifiersChangedEvent,
+    ParentElement, Render, Styled, Task, View, VisualContext, WeakView,
 };
 use new_path_prompt::NewPathPrompt;
 use open_path_prompt::OpenPathPrompt;
@@ -45,9 +45,13 @@ use workspace::{
 actions!(file_finder, [SelectPrev, ToggleMenu]);
 
 impl ModalView for FileFinder {
-    fn on_before_dismiss(&mut self, cx: &mut ModelContext<Self>) -> workspace::DismissDecision {
+    fn on_before_dismiss(
+        &mut self,
+        window: &mut Window,
+        cx: &mut ModelContext<Self>,
+    ) -> workspace::DismissDecision {
         let submenu_focused = self.picker.update(cx, |picker, cx| {
-            picker.delegate.popover_menu_handle.is_focused(cx)
+            picker.delegate.popover_menu_handle.is_focused(window, cx)
         });
         workspace::DismissDecision::Dismiss(!submenu_focused)
     }
@@ -136,10 +140,10 @@ impl FileFinder {
             workspace
                 .update(&mut cx, |workspace, cx| {
                     let project = workspace.project().clone();
-                    let weak_workspace = cx.view().downgrade();
+                    let weak_workspace = cx.handle().downgrade();
                     workspace.toggle_modal(cx, |cx| {
                         let delegate = FileFinderDelegate::new(
-                            cx.view().downgrade(),
+                            cx.handle().downgrade(),
                             weak_workspace,
                             project,
                             currently_opened_path,
@@ -179,7 +183,7 @@ impl FileFinder {
         if self.picker.read(cx).delegate.has_changed_selected_index {
             if !event.modified() || !init_modifiers.is_subset_of(&event) {
                 self.init_modifiers = None;
-                cx.dispatch_action(menu::Confirm.boxed_clone());
+                window.dispatch_action(menu::Confirm.boxed_clone(), cx);
             }
         }
     }
@@ -193,9 +197,9 @@ impl FileFinder {
         self.picker.update(cx, |picker, cx| {
             let menu_handle = &picker.delegate.popover_menu_handle;
             if menu_handle.is_deployed() {
-                menu_handle.hide(cx);
+                menu_handle.hide(window, cx);
             } else {
-                menu_handle.show(cx);
+                menu_handle.show(window, cx);
             }
         });
     }
@@ -957,7 +961,7 @@ impl FileFinderDelegate {
     fn key_context(&self, window: &Window) -> KeyContext {
         let mut key_context = KeyContext::new_with_defaults();
         key_context.add("FileFinder");
-        if self.popover_menu_handle.is_focused(window) {
+        if self.popover_menu_handle.is_focused(window, cx) {
             key_context.add("menu_open");
         }
         key_context
@@ -967,7 +971,7 @@ impl FileFinderDelegate {
 impl PickerDelegate for FileFinderDelegate {
     type ListItem = ListItem;
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Search project files...".into()
     }
 
@@ -1255,7 +1259,7 @@ impl PickerDelegate for FileFinderDelegate {
                 .border_color(cx.theme().colors().border_variant)
                 .child(
                     Button::new("open-selection", "Open")
-                        .key_binding(KeyBinding::for_action(&menu::Confirm, cx))
+                        .key_binding(KeyBinding::for_action(&menu::Confirm, window, cx))
                         .on_click(|_, cx| cx.dispatch_action(menu::Confirm.boxed_clone())),
                 )
                 .child(

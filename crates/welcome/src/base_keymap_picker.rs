@@ -2,8 +2,8 @@ use super::base_keymap_setting::BaseKeymap;
 use client::telemetry::Telemetry;
 use fuzzy::{match_strings, StringMatch, StringMatchCandidate};
 use gpui::{
-    actions, AppContext, DismissEvent, EventEmitter, FocusableView, Render, Task, View,
-    ModelContext, VisualContext, WeakView,
+    actions, AppContext, DismissEvent, EventEmitter, FocusableView, ModelContext, Render, Task,
+    View, VisualContext, WeakView,
 };
 use picker::{Picker, PickerDelegate};
 use project::Fs;
@@ -31,7 +31,7 @@ pub fn toggle(
     let telemetry = workspace.client().telemetry().clone();
     workspace.toggle_modal(cx, |cx| {
         BaseKeymapSelector::new(
-            BaseKeymapSelectorDelegate::new(cx.view().downgrade(), fs, telemetry, cx),
+            BaseKeymapSelectorDelegate::new(cx.handle().downgrade(), fs, telemetry, cx),
             cx,
         )
     });
@@ -61,7 +61,7 @@ impl BaseKeymapSelector {
 }
 
 impl Render for BaseKeymapSelector {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex().w(rems(34.)).child(self.picker.clone())
     }
 }
@@ -99,7 +99,7 @@ impl BaseKeymapSelectorDelegate {
 impl PickerDelegate for BaseKeymapSelectorDelegate {
     type ListItem = ui::ListItem;
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Select a base keymap...".into()
     }
 

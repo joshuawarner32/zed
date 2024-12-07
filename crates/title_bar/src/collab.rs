@@ -16,7 +16,7 @@ actions!(
     [ToggleScreenSharing, ToggleMute, ToggleDeafen, LeaveCall]
 );
 
-fn toggle_screen_sharing(_: &ToggleScreenSharing, cx: &mut WindowContext) {
+fn toggle_screen_sharing(_: &ToggleScreenSharing, window: &mut Window, cx: &mut AppContext) {
     let call = ActiveCall::global(cx).read(cx);
     if let Some(room) = call.room().cloned() {
         let client = call.client();
@@ -403,7 +403,7 @@ impl TitleBar {
                 if !platform_supported {
                     Tooltip::text("Cannot share microphone", cx)
                 } else if can_use_microphone {
-                    Tooltip::with_meta("Deafen Audio", None, "Mic will be muted", cx)
+                    Tooltip::with_meta("Deafen Audio", None, "Mic will be muted", window, cx)
                 } else {
                     Tooltip::text("Deafen Audio", cx)
                 }
@@ -432,7 +432,7 @@ impl TitleBar {
                             cx,
                         )
                     })
-                    .on_click(move |_, cx| toggle_screen_sharing(&Default::default(), cx))
+                    .on_click(move |_, cx| toggle_screen_sharing(&Default::default(), window, cx))
                     .into_any_element(),
             );
         }

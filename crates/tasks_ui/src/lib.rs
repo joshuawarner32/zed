@@ -105,7 +105,7 @@ fn toggle_modal(workspace: &mut Workspace, cx: &mut ModelContext<'_, Workspace>)
         project.is_local() || project.ssh_connection_string(cx).is_some() || project.is_via_ssh()
     });
     if can_open_modal {
-        let context_task = task_context(workspace, cx);
+        let context_task = task_context(workspace, window, cx);
         cx.spawn(|workspace, mut cx| async move {
             let task_context = context_task.await;
             workspace
@@ -127,7 +127,7 @@ fn spawn_task_with_name(
 ) -> AsyncTask<anyhow::Result<()>> {
     cx.spawn(|workspace, mut cx| async move {
         let context_task =
-            workspace.update(&mut cx, |workspace, cx| task_context(workspace, cx))?;
+            workspace.update(&mut cx, |workspace, cx| task_context(workspace, window, cx))?;
         let task_context = context_task.await;
         let tasks = workspace.update(&mut cx, |workspace, cx| {
             let Some(task_inventory) = workspace
@@ -140,7 +140,7 @@ fn spawn_task_with_name(
             else {
                 return Vec::new();
             };
-            let (worktree, location) = active_item_selection_properties(workspace, cx);
+            let (worktree, location) = active_item_selection_properties(workspace, window, cx);
             let (file, language) = location
                 .map(|location| {
                     let buffer = location.buffer.read(cx);
@@ -184,7 +184,8 @@ fn spawn_task_with_name(
 
 fn active_item_selection_properties(
     workspace: &Workspace,
-    cx: &mut WindowContext,
+    window: &mut Window,
+    cx: &mut AppContext,
 ) -> (Option<WorktreeId>, Option<Location>) {
     let active_item = workspace.active_item(cx);
     let worktree_id = active_item
@@ -328,7 +329,7 @@ mod tests {
                     workspace.active_item(cx).unwrap().item_id(),
                     editor2.entity_id()
                 );
-                task_context(workspace, cx)
+                task_context(workspace, window, cx)
             })
             .await;
         assert_eq!(
@@ -356,7 +357,7 @@ mod tests {
 
         assert_eq!(
             workspace
-                .update(cx, |workspace, cx| { task_context(workspace, cx) })
+                .update(cx, |workspace, cx| { task_context(workspace, window, cx) })
                 .await,
             TaskContext {
                 cwd: Some("/dir".into()),
@@ -380,8 +381,8 @@ mod tests {
             workspace
                 .update(cx, |workspace, cx| {
                     // Now, let's switch the active item to .ts file.
-                    workspace.activate_item(&editor1, true, true, cx);
-                    task_context(workspace, cx)
+                    workspace.activate_item(&editor1, true, true, window, cx);
+                    task_context(workspace, window, cx)
                 })
                 .await,
             TaskContext {

@@ -40,7 +40,7 @@ impl ChannelModal {
         cx: &mut ModelContext<Self>,
     ) -> Self {
         cx.observe(&channel_store, |_, _, cx| cx.notify()).detach();
-        let channel_modal = cx.view().downgrade();
+        let channel_modal = cx.handle().downgrade();
         let picker = cx.new_model(|cx| {
             Picker::uniform_list(
                 ChannelModalDelegate {
@@ -246,7 +246,7 @@ pub struct ChannelModalDelegate {
 impl PickerDelegate for ChannelModalDelegate {
     type ListItem = ListItem;
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Search collaborator by username...".into()
     }
 
@@ -522,7 +522,7 @@ impl ChannelModalDelegate {
                     .selected_index
                     .min(this.matching_member_indices.len().saturating_sub(1));
 
-                picker.focus(cx);
+                picker.focus(window);
                 cx.notify();
             })
         })
@@ -560,7 +560,7 @@ impl ChannelModalDelegate {
             return;
         };
         let user_id = membership.user.id;
-        let picker = cx.view().clone();
+        let picker = cx.handle().clone();
         let context_menu = ContextMenu::build(window, cx, |mut menu, _window, _cx| {
             let role = membership.role;
 
@@ -617,7 +617,7 @@ impl ChannelModalDelegate {
         cx.focus_view(&context_menu, window);
         let subscription = cx.subscribe(&context_menu, |picker, _, _: &DismissEvent, cx| {
             picker.delegate.context_menu = None;
-            picker.focus(cx);
+            picker.focus(window);
             cx.notify();
         });
         self.context_menu = Some((context_menu, subscription));

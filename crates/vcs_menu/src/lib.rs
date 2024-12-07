@@ -30,7 +30,7 @@ pub struct BranchList {
 
 impl BranchList {
     pub fn open(_: &mut Workspace, _: &OpenRecent, cx: &mut ModelContext<Workspace>) {
-        let this = cx.view().clone();
+        let this = cx.handle().clone();
         cx.spawn(|_, mut cx| async move {
             // Modal branch picker has a longer trailoff than a popover one.
             let delegate = BranchListDelegate::new(this.clone(), 70, &cx).await?;
@@ -133,7 +133,7 @@ impl BranchListDelegate {
 impl PickerDelegate for BranchListDelegate {
     type ListItem = ListItem;
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Select branch...".into()
     }
 

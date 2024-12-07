@@ -7,8 +7,8 @@ use db::kvp::KEY_VALUE_STORE;
 use futures::future::join_all;
 use gpui::{
     actions, Action, AnchorCorner, AnyView, AppContext, AsyncWindowContext, Entity, EventEmitter,
-    ExternalPaths, FocusHandle, FocusableView, IntoElement, Model, ParentElement, Pixels, Render,
-    Styled, Subscription, Task, View, ModelContext, VisualContext, WeakView, WindowContext,
+    ExternalPaths, FocusHandle, FocusableView, IntoElement, Model, ModelContext, ParentElement,
+    Pixels, Render, Styled, Subscription, Task, View, VisualContext, WeakView, WindowContext,
 };
 use itertools::Itertools;
 use project::{terminals::TerminalKind, Fs, ProjectEntryId};
@@ -94,7 +94,7 @@ impl TerminalPanel {
             let workspace = workspace.weak_handle();
             pane.set_custom_drop_handle(cx, move |pane, dropped_item, cx| {
                 if let Some(tab) = dropped_item.downcast_ref::<DraggedTab>() {
-                    let item = if &tab.pane == cx.view() {
+                    let item = if &tab.pane == cx.handle() {
                         pane.item_for_index(tab.ix)
                     } else {
                         tab.pane.read(cx).item_for_index(tab.ix)
@@ -193,7 +193,7 @@ impl TerminalPanel {
         let assistant_tab_bar_button = self.assistant_tab_bar_button.clone();
         self.pane.update(cx, |pane, cx| {
             pane.set_render_tab_bar_buttons(cx, move |pane, cx| {
-                if !pane.has_focus(cx) && !pane.context_menu_focused(cx) {
+                if !pane.has_focus(window) && !pane.context_menu_focused(cx) {
                     return (None, None);
                 }
                 let focus_handle = pane.focus_handle(cx);
@@ -343,9 +343,9 @@ impl TerminalPanel {
         // Since panels/docks are loaded outside from the workspace, we cleanup here, instead of through the workspace.
         if let Some(workspace) = workspace.upgrade() {
             let cleanup_task = workspace.update(&mut cx, |workspace, cx| {
-                workspace
-                    .database_id()
-                    .map(|workspace_id| TerminalView::cleanup(workspace_id, alive_item_ids, cx))
+                workspace.database_id().map(|workspace_id| {
+                    TerminalView::cleanup(workspace_id, alive_item_ids, window, cx)
+                })
             })?;
             if let Some(task) = cleanup_task {
                 task.await.log_err();
@@ -371,7 +371,9 @@ impl TerminalPanel {
             pane::Event::AddItem { item } => {
                 if let Some(workspace) = self.workspace.upgrade() {
                     let pane = self.pane.clone();
-                    workspace.update(cx, |workspace, cx| item.added_to_pane(workspace, pane, cx))
+                    workspace.update(cx, |workspace, cx| {
+                        item.added_to_pane(workspace, pane, window, cx)
+                    })
                 }
             }
 
@@ -580,7 +582,13 @@ impl TerminalPanel {
             .collect()
     }
 
-    fn activate_terminal_view(&self, item_index: usize, focus: bool, cx: &mut WindowContext) {
+    fn activate_terminal_view(
+        &self,
+        item_index: usize,
+        focus: bool,
+        window: &mut Window,
+        cx: &mut AppContext,
+    ) {
         self.pane.update(cx, |pane, cx| {
             pane.activate_item(item_index, true, focus, cx)
         })
@@ -617,7 +625,7 @@ impl TerminalPanel {
                     )
                 }));
                 pane.update(cx, |pane, cx| {
-                    let focus = pane.has_focus(cx);
+                    let focus = pane.has_focus(window);
                     pane.add_item(terminal_view, true, focus, None, cx);
                 });
 
@@ -709,7 +717,7 @@ impl TerminalPanel {
 
         match reveal {
             RevealStrategy::Always => {
-                self.activate_terminal_view(terminal_item_index, true, cx);
+                self.activate_terminal_view(terminal_item_index, true, window, cx);
                 let task_workspace = self.workspace.clone();
                 cx.spawn(|_, mut cx| async move {
                     task_workspace
@@ -719,7 +727,7 @@ impl TerminalPanel {
                 .detach();
             }
             RevealStrategy::NoFocus => {
-                self.activate_terminal_view(terminal_item_index, false, cx);
+                self.activate_terminal_view(terminal_item_index, false, window, cx);
                 let task_workspace = self.workspace.clone();
                 cx.spawn(|_, mut cx| async move {
                     task_workspace
@@ -919,7 +927,13 @@ impl Render for InlineAssistTabBarButton {
                 cx.dispatch_action(InlineAssist::default().boxed_clone());
             }))
             .tooltip(move |window, cx| {
-                Tooltip::for_action_in("Inline Assist", &InlineAssist::default(), &focus_handle, cx)
+                Tooltip::for_action_in(
+                    "Inline Assist",
+                    &InlineAssist::default(),
+                    &focus_handle,
+                    window,
+                    cx,
+                )
             })
     }
 }

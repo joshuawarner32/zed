@@ -16,7 +16,7 @@ pub struct ContactFinder {
 impl ContactFinder {
     pub fn new(user_store: Model<UserStore>, cx: &mut ModelContext<Self>) -> Self {
         let delegate = ContactFinderDelegate {
-            parent: cx.view().downgrade(),
+            parent: cx.handle().downgrade(),
             user_store,
             potential_contacts: Arc::from([]),
             selected_index: 0,
@@ -83,7 +83,7 @@ impl PickerDelegate for ContactFinderDelegate {
         self.selected_index = ix;
     }
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Search collaborator by username...".into()
     }
 

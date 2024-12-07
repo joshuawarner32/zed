@@ -80,7 +80,7 @@ pub enum Cell {
     Raw(Model<RawCell>),
 }
 
-fn convert_outputs(outputs: &Vec<nbformat::v4::Output>, cx: &mut WindowContext) -> Vec<Output> {
+fn convert_outputs(outputs: &Vec<nbformat::v4::Output>, window: &mut Window, cx: &mut AppContext) -> Vec<Output> {
     outputs
         .into_iter()
         .map(|output| match output {
@@ -107,7 +107,7 @@ impl Cell {
         cell: &nbformat::v4::Cell,
         languages: &Arc<LanguageRegistry>,
         notebook_language: Shared<Task<Option<Arc<Language>>>>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Self {
         match cell {
             nbformat::v4::Cell::Markdown {

@@ -58,7 +58,7 @@ fn test_edit_events(cx: &mut TestAppContext) {
     let editor1 = cx.add_window({
         let events = events.clone();
         |cx| {
-            let view = cx.view().clone();
+            let view = cx.handle().clone();
             cx.subscribe(&view, move |_, _, event: &EditorEvent, _| match event {
                 EditorEvent::Edited { .. } => events.borrow_mut().push(("editor1", "edited")),
                 EditorEvent::BufferEdited => events.borrow_mut().push(("editor1", "buffer edited")),
@@ -73,7 +73,7 @@ fn test_edit_events(cx: &mut TestAppContext) {
         let events = events.clone();
         |cx| {
             cx.subscribe(
-                &cx.view().clone(),
+                &cx.handle().clone(),
                 move |_, _, event: &EditorEvent, _| match event {
                     EditorEvent::Edited { .. } => events.borrow_mut().push(("editor2", "edited")),
                     EditorEvent::BufferEdited => {
@@ -663,10 +663,14 @@ async fn test_navigation_history(cx: &mut TestAppContext) {
         cx.new_model(|cx| {
             let buffer = MultiBuffer::build_simple(&sample_text(300, 5, 'a'), cx);
             let mut editor = build_editor(buffer.clone(), cx);
-            let handle = cx.view();
+            let handle = cx.handle();
             editor.set_nav_history(Some(pane.read(cx).nav_history_for_item(handle)));
 
-            fn pop_history(editor: &mut Editor, cx: &mut WindowContext) -> Option<NavigationEntry> {
+            fn pop_history(
+                editor: &mut Editor,
+                window: &mut Window,
+                cx: &mut AppContext,
+            ) -> Option<NavigationEntry> {
                 editor.nav_history.as_mut().unwrap().pop_backward(cx)
             }
 
@@ -9698,7 +9702,7 @@ async fn test_following_with_multiple_excerpts(cx: &mut gpui::TestAppContext) {
     let follower_1 = cx
         .update_window(*workspace.deref(), |_, cx| {
             Editor::from_state_proto(
-                workspace.root_view(cx).unwrap(),
+                workspace.root_view(window, cx).unwrap(),
                 ViewId {
                     creator: Default::default(),
                     id: 0,
@@ -9789,7 +9793,7 @@ async fn test_following_with_multiple_excerpts(cx: &mut gpui::TestAppContext) {
     let follower_2 = cx
         .update_window(*workspace.deref(), |_, cx| {
             Editor::from_state_proto(
-                workspace.root_view(cx).unwrap().clone(),
+                workspace.root_view(window, cx).unwrap().clone(),
                 ViewId {
                     creator: Default::default(),
                     id: 0,
@@ -10281,7 +10285,7 @@ async fn test_on_type_formatting_not_triggered(cx: &mut gpui::TestAppContext) {
     });
 
     editor_handle.update(cx, |editor, cx| {
-        editor.focus(cx);
+        editor.focus(window);
         editor.change_selections(None, cx, |s| {
             s.select_ranges([Point::new(0, 21)..Point::new(0, 20)])
         });
@@ -13226,7 +13230,7 @@ fn test_crease_insertion_and_rendering(cx: &mut TestAppContext) {
             editor.insert_creases(Some(crease), cx);
             let snapshot = editor.snapshot(cx);
             let _div =
-                snapshot.render_crease_toggle(MultiBufferRow(1), false, cx.view().clone(), cx);
+                snapshot.render_crease_toggle(MultiBufferRow(1), false, cx.handle().clone(), cx);
             snapshot
         })
         .unwrap();
@@ -13436,7 +13440,7 @@ async fn test_goto_definition_with_find_all_references_fallback(cx: &mut gpui::T
             "Initially, only one, test, editor should be open in the workspace"
         );
         assert_eq!(
-            test_editor_cx.view(),
+            test_editor_cx.handle(),
             editors.last().expect("Asserted len is 1")
         );
     });
@@ -13472,7 +13476,7 @@ async fn test_goto_definition_with_find_all_references_fallback(cx: &mut gpui::T
         );
         let references_fallback_text = editors
             .into_iter()
-            .find(|new_editor| new_editor != test_editor_cx.view())
+            .find(|new_editor| new_editor != test_editor_cx.handle())
             .expect("Should have one non-test editor now")
             .read(test_editor_cx)
             .text(test_editor_cx);

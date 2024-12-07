@@ -17,7 +17,7 @@ pub struct IndentGuidesStory {
 }
 
 impl IndentGuidesStory {
-    pub fn view(cx: &mut WindowContext) -> Model<Self> {
+    pub fn view(window: &mut Window, cx: &mut AppContext) -> Model<Self> {
         let mut depths = Vec::new();
         depths.push(0);
         depths.push(1);
@@ -40,7 +40,7 @@ impl Render for IndentGuidesStory {
             .child(
                 v_flex().size_full().child(
                     uniform_list(
-                        cx.view().clone(),
+                        cx.handle().clone(),
                         "some-list",
                         self.depths.len(),
                         |this, range, cx| {
@@ -61,7 +61,7 @@ impl Render for IndentGuidesStory {
                     )
                     .with_sizing_behavior(gpui::ListSizingBehavior::Infer)
                     .with_decoration(ui::indent_guides(
-                        cx.view().clone(),
+                        cx.handle().clone(),
                         px(16.),
                         ui::IndentGuideColors {
                             default: Color::Info.color(cx),

@@ -23,8 +23,8 @@ use gpui::{
     AnyElement, AppContext, AssetSource, AsyncWindowContext, Bounds, ClipboardItem, DismissEvent,
     Div, DragMoveEvent, EventEmitter, ExternalPaths, FocusHandle, FocusableView, Hsla,
     InteractiveElement, KeyContext, ListHorizontalSizingBehavior, ListSizingBehavior, Model,
-    MouseButton, MouseDownEvent, ParentElement, Pixels, Point, PromptLevel, Render, ScrollStrategy,
-    Stateful, Styled, Subscription, Task, UniformListScrollHandle, View, ModelContext,
+    ModelContext, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, PromptLevel, Render,
+    ScrollStrategy, Stateful, Styled, Subscription, Task, UniformListScrollHandle, View,
     VisualContext as _, WeakView, WindowContext,
 };
 use indexmap::IndexMap;
@@ -376,9 +376,9 @@ impl ProjectPanel {
                 show_scrollbar: !Self::should_autohide_scrollbar(cx),
                 hide_scrollbar_task: None,
                 vertical_scrollbar_state: ScrollbarState::new(scroll_handle.clone())
-                    .parent_view(cx.view()),
+                    .parent_view(&cx.handle()),
                 horizontal_scrollbar_state: ScrollbarState::new(scroll_handle.clone())
-                    .parent_view(cx.view()),
+                    .parent_view(&cx.handle()),
                 max_width_item_index: None,
                 diagnostics: Default::default(),
                 scroll_handle,
@@ -1113,7 +1113,7 @@ impl ProjectPanel {
             });
             self.filename_editor.update(cx, |editor, cx| {
                 editor.clear(cx);
-                editor.focus(cx);
+                editor.focus(window);
             });
             self.update_visible_entries(Some((worktree_id, NEW_ENTRY_ID)), cx);
             self.autoscroll(cx);
@@ -1165,7 +1165,7 @@ impl ProjectPanel {
                         editor.change_selections(Some(Autoscroll::fit()), cx, |s| {
                             s.select_ranges([0..selection_end])
                         });
-                        editor.focus(cx);
+                        editor.focus(window);
                     });
                     self.update_visible_entries(None, cx);
                     self.autoscroll(cx);
@@ -1797,7 +1797,10 @@ impl ProjectPanel {
                 abs_path.and_then(|path| Some(path.parent()?.to_path_buf()))
             };
             if let Some(working_directory) = working_directory {
-                cx.dispatch_action(workspace::OpenTerminal { working_directory }.boxed_clone())
+                window.dispatch_action(
+                    workspace::OpenTerminal { working_directory }.boxed_clone(),
+                    cx,
+                )
             }
         }
     }
@@ -2938,7 +2941,13 @@ impl ProjectPanel {
                                 .id("symlink_icon")
                                 .pr_3()
                                 .tooltip(move |window, cx| {
-                                    Tooltip::with_meta(path.to_string(), None, "Symbolic Link", cx)
+                                    Tooltip::with_meta(
+                                        path.to_string(),
+                                        None,
+                                        "Symbolic Link",
+                                        window,
+                                        cx,
+                                    )
                                 })
                                 .child(
                                     Icon::new(IconName::ArrowUpRight)
@@ -3533,7 +3542,7 @@ impl Render for ProjectPanel {
                 )
                 .track_focus(&self.focus_handle(cx))
                 .child(
-                    uniform_list(cx.view().clone(), "entries", item_count, {
+                    uniform_list(cx.handle().clone(), "entries", item_count, {
                         |this, range, cx| {
                             let mut items = Vec::with_capacity(range.end - range.start);
                             this.for_each_visible_entry(range, cx, |id, details, cx| {
@@ -3545,7 +3554,7 @@ impl Render for ProjectPanel {
                     .when(show_indent_guides, |list| {
                         list.with_decoration(
                             ui::indent_guides(
-                                cx.view().clone(),
+                                cx.handle().clone(),
                                 px(indent_size),
                                 IndentGuideColors::panel(cx),
                                 |this, range, cx| {
@@ -3582,7 +3591,7 @@ impl Render for ProjectPanel {
                                 },
                             ))
                             .with_render_fn(
-                                cx.view().clone(),
+                                cx.handle().clone(),
                                 move |this, params, cx| {
                                     const LEFT_OFFSET: f32 = 14.;
                                     const PADDING_Y: f32 = 4.;
@@ -3667,7 +3676,7 @@ impl Render for ProjectPanel {
                 .child(
                     Button::new("open_project", "Open a project")
                         .full_width()
-                        .key_binding(KeyBinding::for_action(&workspace::Open, cx))
+                        .key_binding(KeyBinding::for_action(&workspace::Open, window, cx))
                         .on_click(cx.listener(|this, _, cx| {
                             this.workspace
                                 .update(cx, |_, cx| cx.dispatch_action(Box::new(workspace::Open)))
@@ -4140,7 +4149,7 @@ mod tests {
         let project = Project::test(fs.clone(), ["/root1".as_ref(), "/root2".as_ref()], cx).await;
         let workspace = cx.add_window(|cx| Workspace::test_new(project.clone(), cx));
         let cx = &mut VisualTestContext::from_window(*workspace, cx);
-        cx.update(|cx| {
+        cx.update(|window, cx| {
             let settings = *ProjectPanelSettings::get_global(cx);
             ProjectPanelSettings::override_global(
                 ProjectPanelSettings {
@@ -7082,7 +7091,11 @@ mod tests {
         });
     }
 
-    fn select_path(panel: &Model<ProjectPanel>, path: impl AsRef<Path>, cx: &mut VisualTestContext) {
+    fn select_path(
+        panel: &Model<ProjectPanel>,
+        path: impl AsRef<Path>,
+        cx: &mut VisualTestContext,
+    ) {
         let path = path.as_ref();
         panel.update(cx, |panel, cx| {
             for worktree in panel.project.read(cx).worktrees(cx).collect::<Vec<_>>() {

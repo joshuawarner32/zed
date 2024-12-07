@@ -117,12 +117,12 @@ impl SearchOptions {
             .tooltip({
                 let action = self.to_toggle_action();
                 let label = self.label();
-                move |cx| Tooltip::for_action_in(label, &*action, &focus_handle, cx)
+                move |cx| Tooltip::for_action_in(label, &*action, &focus_handle, window, cx)
             })
     }
 }
 
-pub(crate) fn show_no_more_matches(cx: &mut WindowContext) {
+pub(crate) fn show_no_more_matches(window: &mut Window, cx: &mut AppContext) {
     cx.defer(|cx| {
         struct NotifType();
         let notification_id = NotificationId::unique::<NotifType>();

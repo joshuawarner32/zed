@@ -1,9 +1,9 @@
 use editor::{scroll::Autoscroll, Anchor, Editor, ExcerptId};
 use gpui::{
     actions, div, rems, uniform_list, AppContext, Div, EventEmitter, FocusHandle, FocusableView,
-    Hsla, InteractiveElement, IntoElement, Model, MouseButton, MouseDownEvent, MouseMoveEvent,
-    ParentElement, Render, ScrollStrategy, SharedString, Styled, UniformListScrollHandle, View,
-    ModelContext, VisualContext, WeakView, WindowContext,
+    Hsla, InteractiveElement, IntoElement, Model, ModelContext, MouseButton, MouseDownEvent,
+    MouseMoveEvent, ParentElement, Render, ScrollStrategy, SharedString, Styled,
+    UniformListScrollHandle, View, VisualContext, WeakView, WindowContext,
 };
 use language::{Buffer, OwnedSyntaxLayer};
 use std::{mem, ops::Range};
@@ -284,7 +284,7 @@ impl Render for SyntaxTreeView {
         {
             let layer = layer.clone();
             rendered = rendered.child(uniform_list(
-                cx.view().clone(),
+                cx.handle().clone(),
                 "SyntaxTreeView",
                 layer.node().descendant_count(),
                 move |this, range, cx| {
@@ -431,7 +431,7 @@ impl SyntaxTreeToolbarItemView {
         let active_layer = buffer_state.active_layer.clone()?;
         let active_buffer = buffer_state.buffer.read(cx).snapshot();
 
-        let view = cx.view().clone();
+        let view = cx.handle().clone();
         Some(
             PopoverMenu::new("Syntax Tree")
                 .trigger(Self::render_header(&active_layer))
@@ -467,7 +467,7 @@ impl SyntaxTreeToolbarItemView {
             buffer_state.active_layer = Some(layer.to_owned());
             view.selected_descendant_ix = None;
             cx.notify();
-            view.focus_handle.focus(cx);
+            view.focus_handle.focus(window);
             Some(())
         })
     }

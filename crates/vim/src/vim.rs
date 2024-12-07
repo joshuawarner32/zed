@@ -175,7 +175,7 @@ pub(crate) struct Vim {
 // This means it needs a VisualContext. The easiest way to satisfy that constraint is
 // to make Vim a "View" that is just never actually rendered.
 impl Render for Vim {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         gpui::Empty
     }
 }
@@ -190,7 +190,7 @@ impl Vim {
     const NAMESPACE: &'static str = "vim";
 
     pub fn new(cx: &mut ModelContext<Editor>) -> Model<Self> {
-        let editor = cx.view().clone();
+        let editor = cx.handle().clone();
 
         cx.new_model(|cx| Vim {
             mode: Mode::Normal,
@@ -315,7 +315,7 @@ impl Vim {
         editor.unregister_addon::<VimAddon>();
         editor.set_relative_line_number(None, cx);
         if let Some(vim) = Vim::globals(cx).focused_vim() {
-            if vim.entity_id() == cx.view().entity_id() {
+            if vim.entity_id() == cx.handle().entity_id() {
                 Vim::globals(cx).focused_vim = None;
             }
         }
@@ -690,7 +690,7 @@ impl Vim {
 
         if VimSettings::get_global(cx).toggle_relative_line_numbers {
             if let Some(old_vim) = Vim::globals(cx).focused_vim() {
-                if old_vim.entity_id() != cx.view().entity_id() {
+                if old_vim.entity_id() != cx.handle().entity_id() {
                     old_vim.update(cx, |vim, cx| {
                         vim.update_editor(cx, |_, editor, cx| {
                             editor.set_relative_line_number(None, cx)
@@ -709,7 +709,7 @@ impl Vim {
                 });
             }
         }
-        Vim::globals(cx).focused_vim = Some(cx.view().downgrade());
+        Vim::globals(cx).focused_vim = Some(cx.handle().downgrade());
     }
 
     fn blurred(&mut self, cx: &mut ModelContext<Self>) {

@@ -30,6 +30,6 @@ pub trait Tool: 'static + Send + Sync {
         self: Arc<Self>,
         input: serde_json::Value,
         workspace: WeakModel<Workspace>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Task<Result<String>>;
 }

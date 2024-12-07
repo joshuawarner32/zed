@@ -51,7 +51,7 @@ impl ScopeSelector {
         cx: &mut ModelContext<Self>,
     ) -> Self {
         let delegate =
-            ScopeSelectorDelegate::new(workspace, cx.view().downgrade(), language_registry);
+            ScopeSelectorDelegate::new(workspace, cx.handle().downgrade(), language_registry);
 
         let picker = cx.new_model(|cx| Picker::uniform_list(delegate, cx));
 
@@ -70,7 +70,7 @@ impl FocusableView for ScopeSelector {
 }
 
 impl Render for ScopeSelector {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex().w(rems(34.)).child(self.picker.clone())
     }
 }

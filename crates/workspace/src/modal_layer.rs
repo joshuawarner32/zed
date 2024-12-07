@@ -1,4 +1,7 @@
-use gpui::{AnyView, DismissEvent, FocusHandle, ManagedView, Subscription, View};
+use gpui::{
+    AnyModel, AnyView, DismissEvent, FocusHandle, ManagedView, Model, ModelContext, Subscription,
+    Window,
+};
 use ui::prelude::*;
 
 pub enum DismissDecision {
@@ -6,8 +9,8 @@ pub enum DismissDecision {
     Pending,
 }
 
-pub trait ModalView: ManagedView {
-    fn on_before_dismiss(&mut self, _: &mut ModelContext<Self>) -> DismissDecision {
+pub trait ModalView: ManagedView + Render {
+    fn on_before_dismiss(&mut self, _: &mut Window, _: &mut ModelContext<Self>) -> DismissDecision {
         DismissDecision::Dismiss(true)
     }
 
@@ -17,21 +20,26 @@ pub trait ModalView: ManagedView {
 }
 
 trait ModalViewHandle {
-    fn on_before_dismiss(&mut self, cx: &mut WindowContext) -> DismissDecision;
+    fn on_before_dismiss(&mut self, window: &mut Window, cx: &mut AppContext) -> DismissDecision;
+    fn model(&self) -> AnyModel;
     fn view(&self) -> AnyView;
-    fn fade_out_background(&self, cx: &WindowContext) -> bool;
+    fn fade_out_background(&self, cx: &mut AppContext) -> bool;
 }
 
 impl<V: ModalView> ModalViewHandle for Model<V> {
-    fn on_before_dismiss(&mut self, cx: &mut WindowContext) -> DismissDecision {
-        self.update(cx, |this, cx| this.on_before_dismiss(cx))
+    fn on_before_dismiss(&mut self, window: &mut Window, cx: &mut AppContext) -> DismissDecision {
+        self.update(cx, |this, cx| this.on_before_dismiss(window, cx))
+    }
+
+    fn model(&self) -> AnyModel {
+        self.clone().into()
     }
 
     fn view(&self) -> AnyView {
         self.clone().into()
     }
 
-    fn fade_out_background(&self, cx: &WindowContext) -> bool {
+    fn fade_out_background(&self, cx: &mut AppContext) -> bool {
         self.read(cx).fade_out_background()
     }
 }
@@ -62,24 +70,32 @@ impl ModalLayer {
         }
     }
 
-    pub fn toggle_modal<V, B>(&mut self, cx: &mut ModelContext<Self>, build_view: B)
-    where
+    pub fn toggle_modal<V, B>(
+        &mut self,
+        window: &mut Window,
+        cx: &mut ModelContext<Self>,
+        build_view: B,
+    ) where
         V: ModalView,
-        B: FnOnce(&mut ModelContext<V>) -> V,
+        B: FnOnce(&mut Window, &mut ModelContext<V>) -> V,
     {
         if let Some(active_modal) = &self.active_modal {
-            let is_close = active_modal.modal.view().downcast::<V>().is_ok();
-            let did_close = self.hide_modal(cx);
+            let is_close = active_modal.modal.model().downcast::<V>().is_ok();
+            let did_close = self.hide_modal(window, cx);
             if is_close || !did_close {
                 return;
             }
         }
         let new_modal = cx.new_model(build_view);
-        self.show_modal(new_modal, cx);
+        self.show_modal(new_modal, window, cx);
     }
 
-    fn show_modal<V>(&mut self, new_modal: Model<V>, cx: &mut ModelContext<Self>)
-    where
+    fn show_modal<V>(
+        &mut self,
+        new_modal: Model<V>,
+        window: &mut Window,
+        cx: &mut ModelContext<Self>,
+    ) where
         V: ModalView,
     {
         let focus_handle = cx.focus_handle();
@@ -87,7 +103,7 @@ impl ModalLayer {
             modal: Box::new(new_modal.clone()),
             _subscriptions: [
                 cx.subscribe(&new_modal, |this, _, _: &DismissEvent, cx| {
-                    this.hide_modal(cx);
+                    this.hide_modal(window, cx);
                 }),
                 cx.on_focus_out(&focus_handle, |this, _event, cx| {
                     if this.dismiss_on_focus_lost {
@@ -104,13 +120,13 @@ impl ModalLayer {
         cx.notify();
     }
 
-    fn hide_modal(&mut self, cx: &mut ModelContext<Self>) -> bool {
+    fn hide_modal(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> bool {
         let Some(active_modal) = self.active_modal.as_mut() else {
             self.dismiss_on_focus_lost = false;
             return false;
         };
 
-        match active_modal.modal.on_before_dismiss(cx) {
+        match active_modal.modal.on_before_dismiss(window, cx) {
             DismissDecision::Dismiss(dismiss) => {
                 self.dismiss_on_focus_lost = !dismiss;
                 if !dismiss {
@@ -125,8 +141,8 @@ impl ModalLayer {
 
         if let Some(active_modal) = self.active_modal.take() {
             if let Some(previous_focus) = active_modal.previous_focus_handle {
-                if active_modal.focus_handle.contains_focused(cx) {
-                    previous_focus.focus(cx);
+                if active_modal.focus_handle.contains_focused(window) {
+                    previous_focus.focus(window);
                 }
             }
             cx.notify();
@@ -139,7 +155,7 @@ impl ModalLayer {
         V: 'static,
     {
         let active_modal = self.active_modal.as_ref()?;
-        active_modal.modal.view().downcast::<V>().ok()
+        active_modal.modal.model().downcast::<V>().ok()
     }
 
     pub fn has_active_modal(&self) -> bool {
@@ -148,7 +164,7 @@ impl ModalLayer {
 }
 
 impl Render for ModalLayer {
-    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let Some(active_modal) = &self.active_modal else {
             return div();
         };
@@ -163,8 +179,8 @@ impl Render for ModalLayer {
                 background.fade_out(0.2);
                 el.bg(background)
                     .occlude()
-                    .on_mouse_down_out(cx.listener(|this, _, cx| {
-                        this.hide_modal(cx);
+                    .on_mouse_down_out(cx.listener(|this, _, window, cx| {
+                        this.hide_modal(window, cx);
                     }))
             })
             .child(
@@ -175,7 +191,7 @@ impl Render for ModalLayer {
                     .flex_col()
                     .items_center()
                     .track_focus(&active_modal.focus_handle)
-                    .child(h_flex().occlude().child(active_modal.modal.view())),
+                    .child(h_flex().occlude().child(active_modal.modal.model())),
             )
     }
 }

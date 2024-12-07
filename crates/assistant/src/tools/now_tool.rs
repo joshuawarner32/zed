@@ -42,7 +42,8 @@ impl Tool for NowTool {
         self: Arc<Self>,
         input: serde_json::Value,
         _workspace: WeakModel<workspace::Workspace>,
-        _cx: &mut WindowContext,
+        _window: &mut Window,
+        _cx: &mut AppContext,
     ) -> Task<Result<String>> {
         let input: FileToolInput = match serde_json::from_value(input) {
             Ok(input) => input,

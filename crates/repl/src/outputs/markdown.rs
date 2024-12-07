@@ -55,7 +55,7 @@ impl OutputContent for MarkdownView {
         true
     }
 
-    fn buffer_content(&mut self, cx: &mut WindowContext) -> Option<Model<Buffer>> {
+    fn buffer_content(&mut self, window: &mut Window, cx: &mut AppContext) -> Option<Model<Buffer>> {
         let buffer = cx.new_model(|cx| {
             // todo!(): Bring in the language registry so we can set the language to markdown
             let mut buffer = Buffer::local(self.raw_text.clone(), cx)

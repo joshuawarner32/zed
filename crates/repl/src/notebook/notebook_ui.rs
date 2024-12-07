@@ -112,10 +112,10 @@ impl NotebookEditor {
             );
         }
 
-        let view = cx.view().downgrade();
+        let view = cx.handle().downgrade();
         let cell_count = cell_order.len();
 
-        let this = cx.view();
+        let this = cx.handle();
         let cell_list = ListState::new(
             cell_count,
             gpui::ListAlignment::Top,
@@ -284,11 +284,7 @@ impl NotebookEditor {
             .border_color(cx.theme().colors().border)
     }
 
-    fn render_notebook_control(
-        id: impl Into<SharedString>,
-        icon: IconName,
-        _cx: &ModelContext<Self>,
-    ) -> IconButton {
+    fn render_notebook_control(id: impl Into<SharedString>, icon: IconName) -> IconButton {
         let id: ElementId = ElementId::Name(id.into());
         IconButton::new(id, icon).width(px(CONTROL_SIZE).into())
     }
@@ -310,52 +306,53 @@ impl NotebookEditor {
                     .child(
                         Self::button_group(cx)
                             .child(
-                                Self::render_notebook_control("run-all-cells", IconName::Play, cx)
+                                Self::render_notebook_control("run-all-cells", IconName::Play)
                                     .tooltip(move |window, cx| {
-                                        Tooltip::for_action("Execute all cells", &RunAll, cx)
+                                        Tooltip::for_action(
+                                            "Execute all cells",
+                                            &RunAll,
+                                            window,
+                                            cx,
+                                        )
                                     })
                                     .on_click(|_, cx| {
                                         cx.dispatch_action(Box::new(RunAll));
                                     }),
                             )
                             .child(
-                                Self::render_notebook_control(
-                                    "clear-all-outputs",
-                                    IconName::ListX,
-                                    cx,
-                                )
-                                .disabled(!has_outputs)
-                                .tooltip(move |window, cx| {
-                                    Tooltip::for_action("Clear all outputs", &ClearOutputs, cx)
-                                })
-                                .on_click(|_, cx| {
-                                    cx.dispatch_action(Box::new(ClearOutputs));
-                                }),
+                                Self::render_notebook_control("clear-all-outputs", IconName::ListX)
+                                    .disabled(!has_outputs)
+                                    .tooltip(move |window, cx| {
+                                        Tooltip::for_action(
+                                            "Clear all outputs",
+                                            &ClearOutputs,
+                                            window,
+                                            cx,
+                                        )
+                                    })
+                                    .on_click(|_, cx| {
+                                        cx.dispatch_action(Box::new(ClearOutputs));
+                                    }),
                             ),
                     )
                     .child(
                         Self::button_group(cx)
                             .child(
-                                Self::render_notebook_control(
-                                    "move-cell-up",
-                                    IconName::ArrowUp,
-                                    cx,
-                                )
-                                .tooltip(move |window, cx| {
-                                    Tooltip::for_action("Move cell up", &MoveCellUp, cx)
-                                })
-                                .on_click(|_, cx| {
-                                    cx.dispatch_action(Box::new(MoveCellUp));
-                                }),
+                                Self::render_notebook_control("move-cell-up", IconName::ArrowUp)
+                                    .tooltip(move |window, cx| {
+                                        Tooltip::for_action("Move cell up", &MoveCellUp, window, cx)
+                                    })
+                                    .on_click(|_, cx| {
+                                        cx.dispatch_action(Box::new(MoveCellUp));
+                                    }),
                             )
                             .child(
                                 Self::render_notebook_control(
                                     "move-cell-down",
                                     IconName::ArrowDown,
-                                    cx,
                                 )
                                 .tooltip(move |window, cx| {
-                                    Tooltip::for_action("Move cell down", &MoveCellDown, cx)
+                                    Tooltip::for_action("Move cell down", &MoveCellDown, window, cx)
                                 })
                                 .on_click(|_, cx| {
                                     cx.dispatch_action(Box::new(MoveCellDown));
@@ -365,22 +362,28 @@ impl NotebookEditor {
                     .child(
                         Self::button_group(cx)
                             .child(
-                                Self::render_notebook_control(
-                                    "new-markdown-cell",
-                                    IconName::Plus,
-                                    cx,
-                                )
-                                .tooltip(move |window, cx| {
-                                    Tooltip::for_action("Add markdown block", &AddMarkdownBlock, cx)
-                                })
-                                .on_click(|_, cx| {
-                                    cx.dispatch_action(Box::new(AddMarkdownBlock));
-                                }),
+                                Self::render_notebook_control("new-markdown-cell", IconName::Plus)
+                                    .tooltip(move |window, cx| {
+                                        Tooltip::for_action(
+                                            "Add markdown block",
+                                            &AddMarkdownBlock,
+                                            window,
+                                            cx,
+                                        )
+                                    })
+                                    .on_click(|_, cx| {
+                                        cx.dispatch_action(Box::new(AddMarkdownBlock));
+                                    }),
                             )
                             .child(
-                                Self::render_notebook_control("new-code-cell", IconName::Code, cx)
+                                Self::render_notebook_control("new-code-cell", IconName::Code)
                                     .tooltip(move |window, cx| {
-                                        Tooltip::for_action("Add code block", &AddCodeBlock, cx)
+                                        Tooltip::for_action(
+                                            "Add code block",
+                                            &AddCodeBlock,
+                                            window,
+                                            cx,
+                                        )
                                     })
                                     .on_click(|_, cx| {
                                         cx.dispatch_action(Box::new(AddCodeBlock));
@@ -395,7 +398,6 @@ impl NotebookEditor {
                     .child(Self::render_notebook_control(
                         "more-menu",
                         IconName::Ellipsis,
-                        cx,
                     ))
                     .child(
                         Self::button_group(cx)

@@ -78,7 +78,8 @@ impl SlashCommand for ContextServerSlashCommand {
         arguments: &[String],
         _cancel: Arc<AtomicBool>,
         _workspace: Option<WeakModel<Workspace>>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<Vec<ArgumentCompletion>>> {
         let Ok((arg_name, arg_value)) = completion_argument(&self.prompt, arguments) else {
             return Task::ready(Err(anyhow!("Failed to complete argument")));
@@ -130,7 +131,8 @@ impl SlashCommand for ContextServerSlashCommand {
         _context_buffer: BufferSnapshot,
         _workspace: WeakModel<Workspace>,
         _delegate: Option<Arc<dyn LspAdapterDelegate>>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<SlashCommandResult> {
         let server_id = self.server_id.clone();
         let prompt_name = self.prompt.name.clone();

@@ -7,7 +7,7 @@ use editor::scroll::{Autoscroll, AutoscrollStrategy};
 use editor::{Editor, EditorEvent};
 use gpui::{
     list, AppContext, ClickEvent, EventEmitter, FocusHandle, FocusableView, InteractiveElement,
-    IntoElement, ListState, ParentElement, Render, Styled, Subscription, Task, View, ModelContext,
+    IntoElement, ListState, ModelContext, ParentElement, Render, Styled, Subscription, Task, View,
     WeakView,
 };
 use language::LanguageRegistry;
@@ -87,7 +87,7 @@ impl MarkdownPreviewView {
                         pane.add_item(Box::new(view.clone()), false, false, None, cx)
                     }
                 });
-                editor.focus_handle(cx).focus(cx);
+                editor.focus_handle(cx).focus(window);
                 cx.notify();
             }
         });
@@ -140,7 +140,7 @@ impl MarkdownPreviewView {
         cx: &mut ModelContext<Workspace>,
     ) -> Model<Self> {
         cx.new_model(|cx: &mut ModelContext<Self>| {
-            let view = cx.view().downgrade();
+            let view = cx.handle().downgrade();
 
             let list_state =
                 ListState::new(0, gpui::ListAlignment::Top, px(1000.), move |ix, cx| {
@@ -382,7 +382,7 @@ impl MarkdownPreviewView {
                     cx,
                     |selections| selections.select_ranges(vec![selection]),
                 );
-                editor.focus(cx);
+                editor.focus(window);
             });
         }
     }

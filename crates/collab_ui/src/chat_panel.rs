@@ -92,7 +92,7 @@ impl ChatPanel {
         });
 
         cx.new_model(|cx: &mut ModelContext<Self>| {
-            let view = cx.view().downgrade();
+            let view = cx.handle().downgrade();
             let message_list =
                 ListState::new(0, gpui::ListAlignment::Bottom, px(1000.), move |ix, cx| {
                     if let Some(view) = view.upgrade() {
@@ -611,7 +611,7 @@ impl ChatPanel {
 
                                         this.message_editor.update(cx, |editor, cx| {
                                             editor.set_reply_to_message_id(message_id);
-                                            editor.focus_handle(cx).focus(cx);
+                                            editor.focus_handle(cx).focus(window);
                                         })
                                     })),
                             )
@@ -655,7 +655,7 @@ impl ChatPanel {
                                                     });
 
                                                     editor.set_edit_message_id(message_id);
-                                                    editor.focus_handle(cx).focus(cx);
+                                                    editor.focus_handle(cx).focus(window);
                                                 }
                                             })
                                         })),
@@ -666,7 +666,7 @@ impl ChatPanel {
                 })
             })
             .when_some(message_id, |el, message_id| {
-                let this = cx.view().clone();
+                let this = cx.handle().clone();
 
                 el.child(
                     self.render_popover_button(
@@ -698,7 +698,8 @@ impl ChatPanel {
         this: &Model<Self>,
         message_id: u64,
         can_delete_message: bool,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Model<ContextMenu> {
         let menu = {
             ContextMenu::build(window, cx, move |menu, window, cx| {

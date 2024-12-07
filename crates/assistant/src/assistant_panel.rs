@@ -40,11 +40,11 @@ use fs::Fs;
 use futures::FutureExt;
 use gpui::{
     canvas, div, img, percentage, point, prelude::*, pulsating_between, size, Action, Animation,
-    AnimationExt, AnyElement, AnyView, AppContext, AsyncWindowContext, ClipboardEntry,
-    ClipboardItem, CursorStyle, Empty, Entity, EventEmitter, ExternalPaths, FocusHandle,
-    FocusableView, FontWeight, InteractiveElement, IntoElement, Model, ModelContext, ParentElement,
-    Pixels, Render, RenderImage, SharedString, Size, StatefulInteractiveElement, Styled,
-    Subscription, Task, Transformation, UpdateGlobal, View, WeakModel, WeakView,
+    AnimationExt, AnyElement, AnyView, AppContext, ClipboardEntry, ClipboardItem, CursorStyle,
+    Empty, Entity, EventEmitter, ExternalPaths, FocusHandle, FocusableView, FontWeight,
+    InteractiveElement, IntoElement, Model, ModelContext, ParentElement, Pixels, Render,
+    RenderImage, SharedString, Size, StatefulInteractiveElement, Styled, Subscription, Task,
+    Transformation, UpdateGlobal, View, WeakModel, WeakView,
 };
 use indexed_docs::IndexedDocsStore;
 use language::{
@@ -202,7 +202,7 @@ impl PickerDelegate for SavedContextPickerDelegate {
         self.selected_index = ix;
     }
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Search...".into()
     }
 
@@ -370,7 +370,7 @@ impl AssistantPanel {
 
                     let project_paths = if let Some(tab) = dropped_item.downcast_ref::<DraggedTab>()
                     {
-                        if &tab.pane == cx.view() {
+                        if &tab.pane == cx.handle() {
                             return None;
                         }
                         let item = tab.pane.read(cx).item_for_index(tab.ix);
@@ -427,7 +427,7 @@ impl AssistantPanel {
                     .on_click(cx.listener({
                         let focus_handle = focus_handle.clone();
                         move |_, _, cx| {
-                            focus_handle.focus(cx);
+                            focus_handle.focus(window);
                             cx.dispatch_action(DeployHistory.boxed_clone())
                         }
                     }))
@@ -447,7 +447,7 @@ impl AssistantPanel {
                         pane.active_item()
                             .map_or(false, |item| item.downcast::<ContextHistory>().is_some()),
                     );
-                let _pane = cx.view().clone();
+                let _pane = cx.handle().clone();
                 let right_children =
                     h_flex()
                         .gap(DynamicSpacing::Base02.rems(cx))
@@ -595,7 +595,7 @@ impl AssistantPanel {
             pane::Event::AddItem { item } => {
                 self.workspace
                     .update(cx, |workspace, cx| {
-                        item.added_to_pane(workspace, self.pane.clone(), cx)
+                        item.added_to_pane(workspace, self.pane.clone(), window, cx)
                     })
                     .ok();
                 true
@@ -711,7 +711,7 @@ impl AssistantPanel {
             .log_err()
             .flatten();
 
-        let assistant_panel = cx.view().downgrade();
+        let assistant_panel = cx.handle().downgrade();
         let editor = cx.new_model(|cx| {
             let mut editor = ContextEditor::for_context(
                 context,
@@ -816,7 +816,7 @@ impl AssistantPanel {
                     InlineAssistant::update_global(cx, |assistant, cx| {
                         assistant.assist(
                             &active_editor,
-                            Some(cx.view().downgrade()),
+                            Some(cx.handle().downgrade()),
                             include_context.then_some(&assistant_panel),
                             initial_prompt,
                             cx,
@@ -827,7 +827,7 @@ impl AssistantPanel {
                     TerminalInlineAssistant::update_global(cx, |assistant, cx| {
                         assistant.assist(
                             &active_terminal,
-                            Some(cx.view().downgrade()),
+                            Some(cx.handle().downgrade()),
                             Some(&assistant_panel),
                             initial_prompt,
                             cx,
@@ -904,7 +904,8 @@ impl AssistantPanel {
     fn resolve_inline_assist_target(
         workspace: &mut Workspace,
         assistant_panel: &Model<AssistantPanel>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<InlineAssistTarget> {
         if let Some(terminal_panel) = workspace.panel::<TerminalPanel>(cx) {
             if terminal_panel
@@ -988,7 +989,7 @@ impl AssistantPanel {
 
                     let fs = this.fs.clone();
                     let project = this.project.clone();
-                    let weak_assistant_panel = cx.view().downgrade();
+                    let weak_assistant_panel = cx.handle().downgrade();
 
                     let editor = cx.new_model(|cx| {
                         ContextEditor::for_context(
@@ -1018,7 +1019,7 @@ impl AssistantPanel {
                 .log_err()
                 .flatten();
 
-            let assistant_panel = cx.view().downgrade();
+            let assistant_panel = cx.handle().downgrade();
             let editor = cx.new_model(|cx| {
                 let mut editor = ContextEditor::for_context(
                     context,
@@ -1180,7 +1181,7 @@ impl AssistantPanel {
                 pane.activate_item(history_item_ix, true, true, cx);
             });
         } else {
-            let assistant_panel = cx.view().downgrade();
+            let assistant_panel = cx.handle().downgrade();
             let history = cx.new_model(|cx| {
                 ContextHistory::new(
                     self.project.clone(),
@@ -1559,7 +1560,7 @@ impl ContextEditor {
     ) -> Self {
         let completion_provider = SlashCommandCompletionProvider::new(
             context.read(cx).slash_commands.clone(),
-            Some(cx.view().downgrade()),
+            Some(cx.handle().downgrade()),
             Some(workspace.clone()),
         );
 
@@ -1731,7 +1732,7 @@ impl ContextEditor {
         });
     }
 
-    fn cursors(&self, cx: &mut WindowContext) -> Vec<usize> {
+    fn cursors(&self, window: &mut Window, cx: &mut AppContext) -> Vec<usize> {
         let selections = self
             .editor
             .update(cx, |editor, cx| editor.selections.all::<usize>(cx));
@@ -1859,7 +1860,7 @@ impl ContextEditor {
         event: &ContextEvent,
         cx: &mut ModelContext<Self>,
     ) {
-        let context_editor = cx.view().downgrade();
+        let context_editor = cx.handle().downgrade();
 
         match event {
             ContextEvent::MessagesEdited => {
@@ -1914,14 +1915,14 @@ impl ContextEditor {
                             .map(|tool_use| {
                                 let placeholder = FoldPlaceholder {
                                     render: render_fold_icon_button(
-                                        cx.view().downgrade(),
+                                        cx.handle().downgrade(),
                                         IconName::PocketKnife,
                                         tool_use.name.clone().into(),
                                     ),
                                     ..Default::default()
                                 };
                                 let render_trailer =
-                                    move |_row, _unfold, _cx: &mut WindowContext| Empty.into_any();
+                                    move |_row, _unfold, _window: &mut Window, _cx: &mut AppContext| Empty.into_any();
 
                                 let start = buffer
                                     .anchor_in_excerpt(excerpt_id, tool_use.source_range.start)
@@ -1991,7 +1992,7 @@ impl ContextEditor {
                             let confirm_command = Arc::new({
                                 let context_editor = context_editor.clone();
                                 let command = command.clone();
-                                move |cx: &mut WindowContext| {
+                                move |window: &mut Window, cx: &mut AppContext| {
                                     context_editor
                                         .update(cx, |context_editor, cx| {
                                             context_editor.run_command(
@@ -2013,7 +2014,7 @@ impl ContextEditor {
                             let render_toggle = {
                                 let confirm_command = confirm_command.clone();
                                 let command = command.clone();
-                                move |row, _, _, _cx: &mut WindowContext| {
+                                move |row, _, _, _window: &mut Window, _cx: &mut AppContext| {
                                     render_pending_slash_command_gutter_decoration(
                                         row,
                                         &command.status,
@@ -2023,7 +2024,7 @@ impl ContextEditor {
                             };
                             let render_trailer = {
                                 let command = command.clone();
-                                move |row, _unfold, cx: &mut WindowContext| {
+                                move |row, _unfold, window: &mut Window, cx: &mut AppContext| {
                                     // TODO: In the future we should investigate how we can expose
                                     // this as a hook on the `SlashCommand` trait so that we don't
                                     // need to special-case it here.
@@ -2095,14 +2096,16 @@ impl ContextEditor {
 
                     let placeholder = FoldPlaceholder {
                         render: render_fold_icon_button(
-                            cx.view().downgrade(),
+                            cx.handle().downgrade(),
                             IconName::PocketKnife,
                             format!("Tool Result: {tool_use_id}").into(),
                         ),
                         ..Default::default()
                     };
                     let render_trailer =
-                        move |_row, _unfold, _cx: &mut WindowContext| Empty.into_any();
+                        move |_row, _unfold, _window: &mut Window, _cx: &mut AppContext| {
+                            Empty.into_any()
+                        };
 
                     let start = buffer
                         .anchor_in_excerpt(excerpt_id, output_range.start)
@@ -2243,7 +2246,7 @@ impl ContextEditor {
         updated: &Vec<Range<text::Anchor>>,
         cx: &mut ModelContext<ContextEditor>,
     ) {
-        let this = cx.view().downgrade();
+        let this = cx.handle().downgrade();
         let mut editors_to_close = Vec::new();
 
         self.editor.update(cx, |editor, cx| {
@@ -2384,7 +2387,7 @@ impl ContextEditor {
                         start..end,
                         FoldPlaceholder {
                             render: render_fold_icon_button(
-                                cx.view().downgrade(),
+                                cx.handle().downgrade(),
                                 section.icon,
                                 section.label.clone(),
                             ),
@@ -2945,6 +2948,7 @@ impl ContextEditor {
     fn insert_selection(
         workspace: &mut Workspace,
         _: &InsertIntoEditor,
+        window: &mut Window,
         cx: &mut ModelContext<Workspace>,
     ) {
         let Some(panel) = workspace.panel::<AssistantPanel>(cx) else {
@@ -2963,7 +2967,7 @@ impl ContextEditor {
         if let Some((text, _)) = Self::get_selection_or_code_block(&context_editor_view, cx) {
             active_editor_view.update(cx, |editor, cx| {
                 editor.insert(&text, cx);
-                editor.focus(cx);
+                editor.focus(window);
             })
         }
     }
@@ -3122,7 +3126,7 @@ impl ContextEditor {
 
                                 let fold_placeholder = quote_selection_fold_placeholder(
                                     crease_title,
-                                    cx.view().downgrade(),
+                                    cx.handle().downgrade(),
                                 );
                                 let crease = Crease::inline(
                                     anchor_before..anchor_after,
@@ -3305,7 +3309,7 @@ impl ContextEditor {
                     let buffer = editor.buffer().read(cx).snapshot(cx);
 
                     let mut buffer_rows_to_fold = BTreeSet::new();
-                    let weak_editor = cx.view().downgrade();
+                    let weak_editor = cx.handle().downgrade();
                     editor.insert_creases(
                         metadata.creases.into_iter().map(|metadata| {
                             let start = buffer.anchor_after(
@@ -3773,7 +3777,7 @@ impl ContextEditor {
     fn render_inject_context_menu(&self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         slash_command_picker::SlashCommandSelector::new(
             self.slash_commands.clone(),
-            cx.view().downgrade(),
+            cx.handle().downgrade(),
             Button::new("trigger", "Add Context")
                 .icon(IconName::Plus)
                 .icon_size(IconSize::Small)
@@ -4148,7 +4152,7 @@ impl Render for ContextEditor {
         let accept_terms = if self.show_accept_terms {
             provider
                 .as_ref()
-                .and_then(|provider| provider.render_accept_terms(cx))
+                .and_then(|provider| provider.render_accept_terms(window, cx))
         } else {
             None
         };
@@ -4376,7 +4380,8 @@ impl FollowableItem for ContextEditor {
         workspace: Model<Workspace>,
         id: workspace::ViewId,
         state: &mut Option<proto::view::Variant>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<Task<Result<Model<Self>>>> {
         let proto::view::Variant::ContextEditor(_) = state.as_ref()? else {
             return None;
@@ -4818,7 +4823,7 @@ impl ConfigurationView {
         provider: &Arc<dyn LanguageModelProvider>,
         cx: &mut ModelContext<Self>,
     ) {
-        let configuration_view = provider.configuration_view(cx);
+        let configuration_view = provider.configuration_view(window, cx);
         self.configuration_views
             .insert(provider.id(), configuration_view);
     }
@@ -4963,7 +4968,8 @@ fn render_slash_command_output_toggle(
     row: MultiBufferRow,
     is_folded: bool,
     fold: ToggleFold,
-    _cx: &mut WindowContext,
+    _window: &mut Window,
+    _cx: &mut AppContext,
 ) -> AnyElement {
     Disclosure::new(
         ("slash-command-output-fold-indicator", row.0 as u64),
@@ -5023,7 +5029,8 @@ fn render_quote_selection_output_toggle(
     row: MultiBufferRow,
     is_folded: bool,
     fold: ToggleFold,
-    _cx: &mut WindowContext,
+    _window: &mut Window,
+    _cx: &mut AppContext,
 ) -> AnyElement {
     Disclosure::new(("quote-selection-indicator", row.0 as u64), !is_folded)
         .selected(is_folded)
@@ -5060,7 +5067,8 @@ fn render_pending_slash_command_gutter_decoration(
 fn render_docs_slash_command_trailer(
     row: MultiBufferRow,
     command: ParsedSlashCommand,
-    cx: &mut WindowContext,
+    window: &mut Window,
+    cx: &mut AppContext,
 ) -> AnyElement {
     if command.arguments.is_empty() {
         return Empty.into_any();

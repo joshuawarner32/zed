@@ -139,7 +139,7 @@ impl ToolbarItemView for Breadcrumbs {
             return ToolbarItemLocation::Hidden;
         };
 
-        let this = cx.view().downgrade();
+        let this = cx.handle().downgrade();
         self.subscription = Some(item.subscribe_to_item_events(
             cx,
             Box::new(move |event, cx| {

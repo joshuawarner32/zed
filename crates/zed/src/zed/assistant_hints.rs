@@ -14,7 +14,7 @@ pub fn init(cx: &mut AppContext) {
     cx.observe_new_models({
         let editors = editors.clone();
         move |_: &mut Workspace, cx: &mut ModelContext<Workspace>| {
-            let workspace_handle = cx.view().clone();
+            let workspace_handle = cx.handle().clone();
             cx.subscribe(&workspace_handle, {
                 let editors = editors.clone();
                 move |_, _, event, cx| match event {
@@ -74,7 +74,8 @@ impl ActiveLineTrailerProvider for AssistantHintsProvider {
         &mut self,
         style: &editor::EditorStyle,
         focus_handle: &gpui::FocusHandle,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Option<gpui::AnyElement> {
         if !focus_handle.is_focused(cx) {
             return None;

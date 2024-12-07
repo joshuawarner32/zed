@@ -2,8 +2,8 @@ use client::telemetry::Telemetry;
 use fs::Fs;
 use fuzzy::{match_strings, StringMatch, StringMatchCandidate};
 use gpui::{
-    actions, AppContext, DismissEvent, EventEmitter, FocusableView, Render, UpdateGlobal, View,
-    ModelContext, VisualContext, WeakView,
+    actions, AppContext, DismissEvent, EventEmitter, FocusableView, ModelContext, Render,
+    UpdateGlobal, View, VisualContext, WeakView,
 };
 use picker::{Picker, PickerDelegate};
 use settings::{update_settings_file, SettingsStore};
@@ -30,7 +30,7 @@ pub fn toggle(workspace: &mut Workspace, toggle: &Toggle, cx: &mut ModelContext<
     let telemetry = workspace.client().telemetry().clone();
     workspace.toggle_modal(cx, |cx| {
         let delegate = ThemeSelectorDelegate::new(
-            cx.view().downgrade(),
+            cx.handle().downgrade(),
             fs,
             telemetry,
             toggle.themes_filter.as_ref(),
@@ -55,7 +55,7 @@ impl FocusableView for ThemeSelector {
 }
 
 impl Render for ThemeSelector {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex().w(rems(34.)).child(self.picker.clone())
     }
 }
@@ -167,7 +167,7 @@ impl ThemeSelectorDelegate {
 impl PickerDelegate for ThemeSelectorDelegate {
     type ListItem = ui::ListItem;
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Select Theme...".into()
     }
 

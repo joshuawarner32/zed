@@ -20,13 +20,13 @@ impl ModeIndicator {
         })
         .detach();
 
-        let handle = cx.view().clone();
+        let handle = cx.handle().clone();
         let window = cx.window_handle();
         cx.observe_new_models::<Vim>(move |_, cx| {
             if cx.window_handle() != window {
                 return;
             }
-            let vim = cx.view().clone();
+            let vim = cx.handle().clone();
             handle.update(cx, |_, cx| {
                 cx.subscribe(&vim, |mode_indicator, vim, event, cx| match event {
                     VimEvent::Focused => {

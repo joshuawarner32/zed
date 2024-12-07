@@ -142,7 +142,7 @@ pub struct ScrollManager {
 }
 
 impl ScrollManager {
-    pub fn new(cx: &mut WindowContext) -> Self {
+    pub fn new(window: &mut Window, cx: &mut AppContext) -> Self {
         ScrollManager {
             vertical_scroll_margin: EditorSettings::get_global(cx).vertical_scroll_margin,
             anchor: ScrollAnchor::new(),
@@ -261,7 +261,7 @@ impl ScrollManager {
         self.show_scrollbar(cx);
         self.autoscroll_request.take();
         if let Some(workspace_id) = workspace_id {
-            let item_id = cx.view().entity_id().as_u64() as ItemId;
+            let item_id = cx.handle().entity_id().as_u64() as ItemId;
 
             cx.foreground_executor()
                 .spawn(async move {

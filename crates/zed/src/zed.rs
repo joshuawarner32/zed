@@ -135,7 +135,7 @@ pub fn initialize_workspace(
     cx: &mut AppContext,
 ) {
     cx.observe_new_models(move |workspace: &mut Workspace, cx| {
-        let workspace_handle = cx.view().clone();
+        let workspace_handle = cx.handle().clone();
         let center_pane = workspace.active_pane().clone();
         initialize_pane(workspace, &center_pane, cx);
         cx.subscribe(&workspace_handle, {
@@ -224,7 +224,7 @@ pub fn initialize_workspace(
 
         auto_update_ui::notify_of_any_new_update(cx);
 
-        let handle = cx.view().downgrade();
+        let handle = cx.handle().downgrade();
         cx.on_window_should_close(move |cx| {
 
             handle
@@ -606,7 +606,7 @@ pub fn initialize_workspace(
             });
         }
 
-        workspace.focus_handle(cx).focus(cx);
+        workspace.focus_handle(cx).focus(window);
     })
     .detach();
 

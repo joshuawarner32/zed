@@ -5,7 +5,7 @@ use editor::Editor;
 use fuzzy::{match_strings, StringMatch, StringMatchCandidate};
 use gpui::{
     actions, AppContext, DismissEvent, EventEmitter, FocusHandle, FocusableView, Model,
-    ParentElement, Render, Styled, Task, View, ModelContext, VisualContext, WeakView,
+    ModelContext, ParentElement, Render, Styled, Task, View, VisualContext, WeakView,
 };
 use language::{LanguageName, Toolchain, ToolchainList};
 use picker::{Picker, PickerDelegate};
@@ -85,7 +85,7 @@ impl ToolchainSelector {
         language_name: LanguageName,
         cx: &mut ModelContext<Self>,
     ) -> Self {
-        let view = cx.view().downgrade();
+        let view = cx.handle().downgrade();
         let picker = cx.new_model(|cx| {
             let delegate = ToolchainSelectorDelegate::new(
                 active_toolchain,
@@ -104,7 +104,7 @@ impl ToolchainSelector {
 }
 
 impl Render for ToolchainSelector {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex().w(rems(34.)).child(self.picker.clone())
     }
 }
@@ -209,7 +209,7 @@ impl ToolchainSelectorDelegate {
 impl PickerDelegate for ToolchainSelectorDelegate {
     type ListItem = ListItem;
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         self.placeholder_text.clone()
     }
 

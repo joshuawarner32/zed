@@ -24,8 +24,8 @@ use std::time::Duration;
 use strum::IntoEnumIterator;
 use ui::{
     div, h_flex, v_flex, Button, ButtonCommon, Clickable, Color, Context, FixedWidth, Icon,
-    IconName, IconPosition, IconSize, IntoElement, Label, LabelCommon, ParentElement, Styled,
-    ModelContext, VisualContext, WindowContext,
+    IconName, IconPosition, IconSize, IntoElement, Label, LabelCommon, ModelContext, ParentElement,
+    Styled, VisualContext, WindowContext,
 };
 
 use super::anthropic::count_anthropic_tokens;
@@ -129,7 +129,7 @@ impl LanguageModelProvider for CopilotChatLanguageModelProvider {
         Task::ready(result)
     }
 
-    fn configuration_view(&self, cx: &mut WindowContext) -> AnyView {
+    fn configuration_view(&self, window: &mut Window, cx: &mut AppContext) -> AnyView {
         let state = self.state.clone();
         cx.new_model(|cx| ConfigurationView::new(state, cx)).into()
     }

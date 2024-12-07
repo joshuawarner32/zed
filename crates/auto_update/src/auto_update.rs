@@ -172,7 +172,7 @@ pub fn init(http_client: Arc<HttpClientWithUrl>, cx: &mut AppContext) {
     cx.set_global(GlobalAutoUpdate(Some(auto_updater)));
 }
 
-pub fn check(_: &Check, cx: &mut WindowContext) {
+pub fn check(_: &Check, window: &mut Window, cx: &mut AppContext) {
     if let Some(message) = option_env!("ZED_UPDATE_EXPLANATION") {
         drop(cx.prompt(
             gpui::PromptLevel::Info,

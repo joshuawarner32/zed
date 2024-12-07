@@ -26,9 +26,10 @@ trait ToolbarItemViewHandle: Send {
     fn set_active_pane_item(
         &self,
         active_pane_item: Option<&dyn ItemHandle>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> ToolbarItemLocation;
-    fn focus_changed(&mut self, pane_focused: bool, cx: &mut WindowContext);
+    fn focus_changed(&mut self, pane_focused: bool, window: &mut Window, cx: &mut AppContext);
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -85,7 +86,7 @@ impl Toolbar {
 }
 
 impl Render for Toolbar {
-    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         if !self.has_any_visible_items() {
             return div();
         }
@@ -234,14 +235,15 @@ impl<T: ToolbarItemView> ToolbarItemViewHandle for Model<T> {
     fn set_active_pane_item(
         &self,
         active_pane_item: Option<&dyn ItemHandle>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> ToolbarItemLocation {
         self.update(cx, |this, cx| {
             this.set_active_pane_item(active_pane_item, cx)
         })
     }
 
-    fn focus_changed(&mut self, pane_focused: bool, cx: &mut WindowContext) {
+    fn focus_changed(&mut self, pane_focused: bool, window: &mut Window, cx: &mut AppContext) {
         self.update(cx, |this, cx| {
             this.pane_focus_update(pane_focused, cx);
             cx.notify();

@@ -518,7 +518,7 @@ impl PaneAxis {
             basis,
             self.flexes.clone(),
             self.bounding_boxes.clone(),
-            cx.view().downgrade(),
+            cx.handle().downgrade(),
         )
         .children(self.members.iter().enumerate().map(|(ix, member)| {
             if member.contains(active_pane) {
@@ -709,7 +709,8 @@ mod element {
             child_start: Point<Pixels>,
             container_size: Size<Pixels>,
             workspace: WeakModel<Workspace>,
-            cx: &mut WindowContext,
+            window: &mut Window,
+            cx: &mut AppContext,
         ) {
             let min_size = match axis {
                 Axis::Horizontal => px(HORIZONTAL_MIN_SIZE),
@@ -793,7 +794,8 @@ mod element {
         fn layout_handle(
             axis: Axis,
             pane_bounds: Bounds<Pixels>,
-            cx: &mut WindowContext,
+            window: &mut Window,
+            cx: &mut AppContext,
         ) -> PaneAxisHandleLayout {
             let handle_bounds = Bounds {
                 origin: pane_bounds.origin.apply_along(axis, |origin| {
@@ -853,7 +855,8 @@ mod element {
             global_id: Option<&GlobalElementId>,
             bounds: Bounds<Pixels>,
             _state: &mut Self::RequestLayoutState,
-            cx: &mut WindowContext,
+            window: &mut Window,
+            cx: &mut AppContext,
         ) -> PaneAxisLayout {
             let dragged_handle = cx.with_element_state::<Rc<RefCell<Option<usize>>>, _>(
                 global_id.unwrap(),
@@ -1002,13 +1005,13 @@ mod element {
                         cx.theme().colors().pane_group_border,
                     ));
 
-                    cx.on_mouse_event({
+                    window.on_mouse_event({
                         let dragged_handle = layout.dragged_handle.clone();
                         let flexes = self.flexes.clone();
                         let workspace = self.workspace.clone();
                         let handle_hitbox = handle.hitbox.clone();
                         move |e: &MouseDownEvent, phase, cx| {
-                            if phase.bubble() && handle_hitbox.is_hovered(cx) {
+                            if phase.bubble() && handle_hitbox.is_hovered(window) {
                                 dragged_handle.replace(Some(ix));
                                 if e.click_count >= 2 {
                                     let mut borrow = flexes.lock();
@@ -1023,7 +1026,7 @@ mod element {
                             }
                         }
                     });
-                    cx.on_mouse_event({
+                    window.on_mouse_event({
                         let workspace = self.workspace.clone();
                         let dragged_handle = layout.dragged_handle.clone();
                         let flexes = self.flexes.clone();
@@ -1048,7 +1051,7 @@ mod element {
                 }
             }
 
-            cx.on_mouse_event({
+            window.on_mouse_event({
                 let dragged_handle = layout.dragged_handle.clone();
                 move |_: &MouseUpEvent, phase, _cx| {
                     if phase.bubble() {

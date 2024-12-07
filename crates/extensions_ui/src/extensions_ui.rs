@@ -66,7 +66,7 @@ pub fn init(cx: &mut AppContext) {
                     cx,
                 );
 
-                let workspace_handle = cx.view().downgrade();
+                let workspace_handle = cx.handle().downgrade();
                 cx.deref_mut()
                     .spawn(|mut cx| async move {
                         let extension_path =
@@ -503,7 +503,7 @@ impl ExtensionsPage {
         extension: &ExtensionMetadata,
         cx: &mut ModelContext<Self>,
     ) -> ExtensionCard {
-        let this = cx.view().clone();
+        let this = cx.handle().clone();
         let status = Self::extension_status(&extension.id, cx);
         let has_dev_extension = Self::dev_extension_exists(&extension.id, cx);
 
@@ -634,7 +634,7 @@ impl ExtensionsPage {
     fn render_remote_extension_context_menu(
         this: &Model<Self>,
         extension_id: Arc<str>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Model<ContextMenu> {
         let context_menu = ContextMenu::build(window, cx, |context_menu, window, cx| {
             context_menu.entry(
@@ -670,7 +670,7 @@ impl ExtensionsPage {
                 workspace.toggle_modal(cx, |cx| {
                     let delegate = ExtensionVersionSelectorDelegate::new(
                         fs,
-                        cx.view().downgrade(),
+                        cx.handle().downgrade(),
                         extension_versions,
                     );
 
@@ -1134,7 +1134,7 @@ impl Render for ExtensionsPage {
                     return this.py_4().child(self.render_empty_state(cx));
                 }
 
-                let view = cx.view().clone();
+                let view = cx.handle().clone();
                 let scroll_handle = self.list.clone();
                 this.child(
                     uniform_list(view, "entries", count, Self::render_extensions)

@@ -87,7 +87,7 @@ fn cell_content(row: &Value, field: &str) -> String {
 const TABLE_Y_PADDING_MULTIPLE: f32 = 0.5;
 
 impl TableView {
-    pub fn new(table: &TabularDataResource, cx: &mut WindowContext) -> Self {
+    pub fn new(table: &TabularDataResource, window: &mut Window, cx: &mut AppContext) -> Self {
         let mut widths = Vec::with_capacity(table.schema.fields.len());
 
         let text_system = cx.text_system();

@@ -266,7 +266,7 @@ impl Vim {
         let Some(pane) = self.pane(cx) else { return };
         let count = self.take_count(cx).unwrap_or(1);
         let prior_selections = self.editor_selections(cx);
-        let vim = cx.view().clone();
+        let vim = cx.handle().clone();
 
         let searched = pane.update(cx, |pane, cx| {
             self.search.direction = direction;
@@ -390,7 +390,7 @@ impl Vim {
                 result.notify_err(workspace, cx);
             })
         }
-        let vim = cx.view().clone();
+        let vim = cx.handle().clone();
         pane.update(cx, |pane, cx| {
             let Some(search_bar) = pane.toolbar().read(cx).item_of_type::<BufferSearchBar>() else {
                 return;

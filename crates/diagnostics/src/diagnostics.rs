@@ -16,9 +16,9 @@ use editor::{
 };
 use gpui::{
     actions, div, svg, AnyElement, AnyView, AppContext, Context, EventEmitter, FocusHandle,
-    FocusableView, HighlightStyle, InteractiveElement, IntoElement, Model, ParentElement, Render,
-    SharedString, Styled, StyledText, Subscription, Task, View, ModelContext, VisualContext,
-    WeakView, WindowContext,
+    FocusableView, HighlightStyle, InteractiveElement, IntoElement, Model, ModelContext,
+    ParentElement, Render, SharedString, Styled, StyledText, Subscription, Task, View,
+    VisualContext, WeakView, WindowContext,
 };
 use language::{
     Bias, Buffer, Diagnostic, DiagnosticEntry, DiagnosticSeverity, Point, Selection, SelectionGoal,
@@ -241,7 +241,7 @@ impl ProjectDiagnosticsEditor {
         if let Some(existing) = workspace.item_of_type::<ProjectDiagnosticsEditor>(cx) {
             workspace.activate_item(&existing, true, true, cx);
         } else {
-            let workspace_handle = cx.view().downgrade();
+            let workspace_handle = cx.handle().downgrade();
             let diagnostics = cx.new_model(|cx| {
                 ProjectDiagnosticsEditor::new(workspace.project().clone(), workspace_handle, cx)
             });
@@ -257,7 +257,7 @@ impl ProjectDiagnosticsEditor {
 
     fn focus_in(&mut self, cx: &mut ModelContext<Self>) {
         if self.focus_handle.is_focused(cx) && !self.path_states.is_empty() {
-            self.editor.focus_handle(cx).focus(cx)
+            self.editor.focus_handle(cx).focus(window)
         }
     }
 

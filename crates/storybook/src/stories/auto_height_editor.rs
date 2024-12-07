@@ -1,6 +1,6 @@
 use editor::Editor;
 use gpui::{
-    div, white, IntoElement, KeyBinding, ParentElement, Render, Styled, View, ModelContext,
+    div, white, IntoElement, KeyBinding, ModelContext, ParentElement, Render, Styled, View,
     VisualContext, WindowContext,
 };
 
@@ -9,7 +9,7 @@ pub struct AutoHeightEditorStory {
 }
 
 impl AutoHeightEditorStory {
-    pub fn new(cx: &mut WindowContext) -> Model<Self> {
+    pub fn new(window: &mut Window, cx: &mut AppContext) -> Model<Self> {
         cx.bind_keys([KeyBinding::new(
             "enter",
             editor::actions::Newline,
@@ -26,7 +26,7 @@ impl AutoHeightEditorStory {
 }
 
 impl Render for AutoHeightEditorStory {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         div()
             .size_full()
             .bg(white())

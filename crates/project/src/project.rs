@@ -354,7 +354,8 @@ pub struct Completion {
     /// Returns, whether new completions should be retriggered after the current one.
     /// If `true` is returned, the editor will show a new completion menu after this completion is confirmed.
     /// if no confirmation is provided or `false` is returned, the completion will be committed.
-    pub confirm: Option<Arc<dyn Send + Sync + Fn(CompletionIntent, &mut WindowContext) -> bool>>,
+    pub confirm:
+        Option<Arc<dyn Send + Sync + Fn(CompletionIntent, &mut Window, &mut AppContext) -> bool>>,
 }
 
 impl std::fmt::Debug for Completion {

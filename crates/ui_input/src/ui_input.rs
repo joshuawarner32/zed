@@ -56,7 +56,7 @@ impl FocusableView for TextField {
 
 impl TextField {
     pub fn new(
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
         label: impl Into<SharedString>,
         placeholder: impl Into<SharedString>,
     ) -> Self {

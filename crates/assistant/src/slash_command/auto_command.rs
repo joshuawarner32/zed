@@ -54,7 +54,7 @@ impl SlashCommand for AutoCommand {
         _arguments: &[String],
         _cancel: Arc<AtomicBool>,
         workspace: Option<WeakModel<Workspace>>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Task<Result<Vec<ArgumentCompletion>>> {
         // There's no autocomplete for a prompt, since it's arbitrary text.
         // However, we can use this opportunity to kick off a drain of the backlog.
@@ -98,7 +98,7 @@ impl SlashCommand for AutoCommand {
         _context_buffer: language::BufferSnapshot,
         workspace: WeakModel<Workspace>,
         _delegate: Option<Arc<dyn LspAdapterDelegate>>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Task<SlashCommandResult> {
         let Some(workspace) = workspace.upgrade() else {
             return Task::ready(Err(anyhow::anyhow!("workspace was dropped")));

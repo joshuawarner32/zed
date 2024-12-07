@@ -5,7 +5,7 @@ use assistant_slash_command::AfterCompletion;
 pub use assistant_slash_command::{SlashCommand, SlashCommandOutput};
 use editor::{CompletionProvider, Editor};
 use fuzzy::{match_strings, StringMatchCandidate};
-use gpui::{AppContext, Model, Task, ModelContext, WeakView, WindowContext};
+use gpui::{AppContext, Model, ModelContext, Task, WeakView, WindowContext};
 use language::{Anchor, Buffer, CodeLabel, Documentation, HighlightId, LanguageServerId, ToPoint};
 use parking_lot::{Mutex, RwLock};
 use project::CompletionIntent;
@@ -71,7 +71,8 @@ impl SlashCommandCompletionProvider {
         command_name: &str,
         command_range: Range<Anchor>,
         name_range: Range<Anchor>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<Vec<project::Completion>>> {
         let slash_commands = self.slash_commands.clone();
         let candidates = slash_commands
@@ -110,39 +111,39 @@ impl SlashCommandCompletionProvider {
                             new_text.push(' ');
                         }
 
-                        let confirm =
-                            editor
-                                .clone()
-                                .zip(workspace.clone())
-                                .map(|(editor, workspace)| {
-                                    let command_name = mat.string.clone();
-                                    let command_range = command_range.clone();
-                                    let editor = editor.clone();
-                                    let workspace = workspace.clone();
-                                    Arc::new(
-                                        move |intent: CompletionIntent, cx: &mut WindowContext| {
-                                            if !requires_argument
-                                                && (!accepts_arguments || intent.is_complete())
-                                            {
-                                                editor
-                                                    .update(cx, |editor, cx| {
-                                                        editor.run_command(
-                                                            command_range.clone(),
-                                                            &command_name,
-                                                            &[],
-                                                            true,
-                                                            workspace.clone(),
-                                                            cx,
-                                                        );
-                                                    })
-                                                    .ok();
-                                                false
-                                            } else {
-                                                requires_argument || accepts_arguments
-                                            }
-                                        },
-                                    ) as Arc<_>
-                                });
+                        let confirm = editor.clone().zip(workspace.clone()).map(
+                            |(editor, workspace)| {
+                                let command_name = mat.string.clone();
+                                let command_range = command_range.clone();
+                                let editor = editor.clone();
+                                let workspace = workspace.clone();
+                                Arc::new(
+                                    move |intent: CompletionIntent,
+                                          window: &mut Window,
+                                          cx: &mut AppContext| {
+                                        if !requires_argument
+                                            && (!accepts_arguments || intent.is_complete())
+                                        {
+                                            editor
+                                                .update(cx, |editor, cx| {
+                                                    editor.run_command(
+                                                        command_range.clone(),
+                                                        &command_name,
+                                                        &[],
+                                                        true,
+                                                        workspace.clone(),
+                                                        cx,
+                                                    );
+                                                })
+                                                .ok();
+                                            false
+                                        } else {
+                                            requires_argument || accepts_arguments
+                                        }
+                                    },
+                                ) as Arc<_>
+                            },
+                        );
                         Some(project::Completion {
                             old_range: name_range.clone(),
                             documentation: Some(Documentation::SingleLine(command.description())),
@@ -165,7 +166,8 @@ impl SlashCommandCompletionProvider {
         command_range: Range<Anchor>,
         argument_range: Range<Anchor>,
         last_argument_range: Range<Anchor>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<Result<Vec<project::Completion>>> {
         let new_cancel_flag = Arc::new(AtomicBool::new(false));
         let mut flag = self.cancel_flag.lock();
@@ -187,45 +189,45 @@ impl SlashCommandCompletionProvider {
                     .await?
                     .into_iter()
                     .map(|new_argument| {
-                        let confirm =
-                            editor
-                                .clone()
-                                .zip(workspace.clone())
-                                .map(|(editor, workspace)| {
-                                    Arc::new({
-                                        let mut completed_arguments = arguments.clone();
-                                        if new_argument.replace_previous_arguments {
-                                            completed_arguments.clear();
-                                        } else {
-                                            completed_arguments.pop();
-                                        }
-                                        completed_arguments.push(new_argument.new_text.clone());
+                        let confirm = editor.clone().zip(workspace.clone()).map(
+                            |(editor, workspace)| {
+                                Arc::new({
+                                    let mut completed_arguments = arguments.clone();
+                                    if new_argument.replace_previous_arguments {
+                                        completed_arguments.clear();
+                                    } else {
+                                        completed_arguments.pop();
+                                    }
+                                    completed_arguments.push(new_argument.new_text.clone());
 
-                                        let command_range = command_range.clone();
-                                        let command_name = command_name.clone();
-                                        move |intent: CompletionIntent, cx: &mut WindowContext| {
-                                            if new_argument.after_completion.run()
-                                                || intent.is_complete()
-                                            {
-                                                editor
-                                                    .update(cx, |editor, cx| {
-                                                        editor.run_command(
-                                                            command_range.clone(),
-                                                            &command_name,
-                                                            &completed_arguments,
-                                                            true,
-                                                            workspace.clone(),
-                                                            cx,
-                                                        );
-                                                    })
-                                                    .ok();
-                                                false
-                                            } else {
-                                                !new_argument.after_completion.run()
-                                            }
+                                    let command_range = command_range.clone();
+                                    let command_name = command_name.clone();
+                                    move |intent: CompletionIntent,
+                                          window: &mut Window,
+                                          cx: &mut AppContext| {
+                                        if new_argument.after_completion.run()
+                                            || intent.is_complete()
+                                        {
+                                            editor
+                                                .update(cx, |editor, cx| {
+                                                    editor.run_command(
+                                                        command_range.clone(),
+                                                        &command_name,
+                                                        &completed_arguments,
+                                                        true,
+                                                        workspace.clone(),
+                                                        cx,
+                                                    );
+                                                })
+                                                .ok();
+                                            false
+                                        } else {
+                                            !new_argument.after_completion.run()
                                         }
-                                    }) as Arc<_>
-                                });
+                                    }
+                                }) as Arc<_>
+                            },
+                        );
 
                         let mut new_text = new_argument.new_text.clone();
                         if new_argument.after_completion == AfterCompletion::Continue {

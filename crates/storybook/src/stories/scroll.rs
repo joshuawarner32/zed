@@ -5,7 +5,7 @@ use ui::Tooltip;
 pub struct ScrollStory;
 
 impl ScrollStory {
-    pub fn view(cx: &mut WindowContext) -> Model<ScrollStory> {
+    pub fn view(window: &mut Window, cx: &mut AppContext) -> Model<ScrollStory> {
         cx.new_model(|_cx| ScrollStory)
     }
 }

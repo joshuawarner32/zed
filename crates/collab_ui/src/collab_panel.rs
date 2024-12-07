@@ -74,7 +74,7 @@ pub fn init(cx: &mut AppContext) {
                 .and_then(|room| room.read(cx).channel_id());
 
             if let Some(channel_id) = channel_id {
-                let workspace = cx.view().clone();
+                let workspace = cx.handle().clone();
                 cx.window_context().defer(move |cx| {
                     ChannelView::open(channel_id, None, workspace, cx).detach_and_log_err(cx)
                 });
@@ -231,7 +231,7 @@ impl CollabPanel {
             })
             .detach();
 
-            let view = cx.view().downgrade();
+            let view = cx.handle().downgrade();
             let list_state =
                 ListState::new(0, gpui::ListAlignment::Top, px(1000.), move |ix, cx| {
                     if let Some(view) = view.upgrade() {
@@ -1038,7 +1038,7 @@ impl CollabPanel {
         role: proto::ChannelRole,
         cx: &mut ModelContext<Self>,
     ) {
-        let this = cx.view().clone();
+        let this = cx.handle().clone();
         if !(role == proto::ChannelRole::Guest
             || role == proto::ChannelRole::Talker
             || role == proto::ChannelRole::Member)
@@ -1051,7 +1051,7 @@ impl CollabPanel {
                 context_menu = context_menu.entry(
                     "Grant Mic Access",
                     None,
-                    cx.handler_for(&this, move |_, _, _window, cx| {
+                    window.handler_for(&this, move |_, _window, cx| {
                         ActiveCall::global(cx)
                             .update(cx, |call, cx| {
                                 let Some(room) = call.room() else {
@@ -1073,7 +1073,7 @@ impl CollabPanel {
                 context_menu = context_menu.entry(
                     "Grant Write Access",
                     None,
-                    cx.handler_for(&this, move |_, cx| {
+                    window.handler_for(&this, move |_, window, cx| {
                         ActiveCall::global(cx)
                             .update(cx, |call, cx| {
                                 let Some(room) = call.room() else {
@@ -1105,7 +1105,7 @@ impl CollabPanel {
                 context_menu = context_menu.entry(
                     label,
                     None,
-                    cx.handler_for(&this, move |_, cx| {
+                    window.handler_for(&this, move |_, window, cx| {
                         ActiveCall::global(cx)
                             .update(cx, |call, cx| {
                                 let Some(room) = call.room() else {
@@ -1154,7 +1154,7 @@ impl CollabPanel {
                 .channel_for_id(clipboard.channel_id)
                 .map(|channel| channel.name.clone())
         });
-        let this = cx.view().clone();
+        let this = cx.handle().clone();
 
         let context_menu = ContextMenu::build(window, cx, |mut context_menu, window, cx| {
             if self.has_subchannels(ix) {
@@ -1305,7 +1305,7 @@ impl CollabPanel {
         contact: Arc<Contact>,
         cx: &mut ModelContext<Self>,
     ) {
-        let this = cx.view().clone();
+        let this = cx.handle().clone();
         let in_room = ActiveCall::global(cx).read(cx).room().is_some();
 
         let context_menu = ContextMenu::build(window, cx, |mut context_menu, window, _| {
@@ -1368,7 +1368,7 @@ impl CollabPanel {
         if self.take_editing_state(cx) {
             cx.focus_view(&self.filter_editor);
         } else if !self.reset_filter_editor_text(cx) {
-            self.focus_handle.focus(cx);
+            self.focus_handle.focus(window);
         }
 
         if self.context_menu.is_some() {
@@ -1631,7 +1631,7 @@ impl CollabPanel {
         self.collapsed_channels.binary_search(&channel_id).is_ok()
     }
 
-    fn leave_call(cx: &mut WindowContext) {
+    fn leave_call(window: &mut Window, cx: &mut AppContext) {
         ActiveCall::global(cx)
             .update(cx, |call, cx| call.hang_up(cx))
             .detach_and_prompt_err("Failed to hang up", cx, |_, _| None);
@@ -2681,7 +2681,12 @@ impl CollabPanel {
     }
 }
 
-fn render_tree_branch(is_last: bool, overdraw: bool, cx: &mut WindowContext) -> impl IntoElement {
+fn render_tree_branch(
+    is_last: bool,
+    overdraw: bool,
+    window: &mut Window,
+    cx: &mut AppContext,
+) -> impl IntoElement {
     let rem_size = cx.rem_size();
     let line_height = cx.text_style().line_height_in_pixels(rem_size);
     let width = rem_size * 1.5;

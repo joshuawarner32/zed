@@ -42,7 +42,7 @@ use gpui::{
 };
 use language::Buffer;
 use runtimelib::{ExecutionState, JupyterMessageContent, MimeBundle, MimeType};
-use ui::{div, prelude::*, v_flex, IntoElement, Styled, Tooltip, ModelContext};
+use ui::{div, prelude::*, v_flex, IntoElement, ModelContext, Styled, Tooltip};
 
 mod image;
 use image::ImageView;
@@ -81,7 +81,11 @@ pub(crate) trait OutputContent {
     fn has_buffer_content(&self, _cx: &WindowContext) -> bool {
         false
     }
-    fn buffer_content(&mut self, _cx: &mut WindowContext) -> Option<Model<Buffer>> {
+    fn buffer_content(
+        &mut self,
+        _window: &mut Window,
+        _cx: &mut AppContext,
+    ) -> Option<Model<Buffer>> {
         None
     }
 }
@@ -99,7 +103,11 @@ impl<V: OutputContent + 'static> OutputContent for Model<V> {
         self.read(cx).has_buffer_content(cx)
     }
 
-    fn buffer_content(&mut self, cx: &mut WindowContext) -> Option<Model<Buffer>> {
+    fn buffer_content(
+        &mut self,
+        window: &mut Window,
+        cx: &mut AppContext,
+    ) -> Option<Model<Buffer>> {
         self.update(cx, |item, cx| item.buffer_content(cx))
     }
 }
@@ -259,7 +267,12 @@ impl Output {
         }
     }
 
-    pub fn new(data: &MimeBundle, display_id: Option<String>, cx: &mut WindowContext) -> Self {
+    pub fn new(
+        data: &MimeBundle,
+        display_id: Option<String>,
+        window: &mut Window,
+        cx: &mut AppContext,
+    ) -> Self {
         match data.richest(rank_mime_type) {
             Some(MimeType::Plain(text)) => Output::Plain {
                 content: cx.new_model(|cx| TerminalOutput::from(text, cx)),
@@ -441,7 +454,7 @@ impl ExecutionView {
         }
 
         Some(Output::Stream {
-            content: cx.new_model(|cx| TerminalOutput::from(text, cx)),
+            content: cx.new_model(|cx| TerminalOutput::from(text, window, cx)),
         })
     }
 }

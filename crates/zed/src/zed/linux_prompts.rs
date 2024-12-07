@@ -22,7 +22,7 @@ pub fn fallback_prompt_renderer(
     detail: Option<&str>,
     actions: &[&str],
     handle: PromptHandle,
-    cx: &mut WindowContext,
+    window: &mut Window, cx: &mut AppContext,
 ) -> RenderablePromptHandle {
     let renderer = cx.new_model({
         |cx| FallbackPromptRenderer {

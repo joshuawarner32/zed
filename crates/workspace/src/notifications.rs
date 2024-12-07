@@ -2,8 +2,8 @@ use crate::{Toast, Workspace};
 use collections::HashMap;
 use gpui::{
     svg, AnyView, AppContext, AsyncWindowContext, ClipboardItem, DismissEvent, Entity, EntityId,
-    EventEmitter, Global, PromptLevel, Render, ScrollHandle, Task, View, ModelContext,
-    VisualContext, WindowContext,
+    EventEmitter, Global, ModelContext, PromptLevel, Render, ScrollHandle, Task, VisualContext,
+    WindowContext,
 };
 use language::DiagnosticSeverity;
 
@@ -261,7 +261,7 @@ impl LanguageServerPrompt {
 }
 
 impl Render for LanguageServerPrompt {
-    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let Some(request) = &self.request else {
             return div().id("language_server_prompt_notification");
         };
@@ -347,7 +347,7 @@ impl Render for LanguageServerPrompt {
                             .child(Label::new(request.message.to_string()).size(LabelSize::Small)),
                     )
                     .children(request.actions.iter().enumerate().map(|(ix, action)| {
-                        let this_handle = cx.view().clone();
+                        let this_handle = cx.handle().clone();
                         ui::Button::new(ix, action.title.clone())
                             .size(ButtonSize::Large)
                             .on_click(move |_, cx| {
@@ -390,7 +390,7 @@ impl ErrorMessagePrompt {
 }
 
 impl Render for ErrorMessagePrompt {
-    fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
         h_flex()
             .id("error_message_prompt_notification")
             .occlude()
@@ -444,8 +444,8 @@ impl EventEmitter<DismissEvent> for ErrorMessagePrompt {}
 
 pub mod simple_message_notification {
     use gpui::{
-        div, DismissEvent, EventEmitter, InteractiveElement, ParentElement, Render, SharedString,
-        StatefulInteractiveElement, Styled, ModelContext,
+        div, DismissEvent, EventEmitter, InteractiveElement, ModelContext, ParentElement, Render,
+        SharedString, StatefulInteractiveElement, Styled,
     };
     use std::sync::Arc;
     use ui::prelude::*;
@@ -513,7 +513,7 @@ pub mod simple_message_notification {
     }
 
     impl Render for MessageNotification {
-        fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
+        fn render(&mut self, window: &mut Window, cx: &mut ModelContext<Self>) -> impl IntoElement {
             v_flex()
                 .elevation_3(cx)
                 .p_4()
@@ -604,7 +604,7 @@ where
 }
 
 pub trait NotifyTaskExt {
-    fn detach_and_notify_err(self, cx: &mut WindowContext);
+    fn detach_and_notify_err(self, window: &mut Window, cx: &mut AppContext);
 }
 
 impl<R, E> NotifyTaskExt for Task<Result<R, E>>
@@ -612,7 +612,7 @@ where
     E: std::fmt::Debug + std::fmt::Display + Sized + 'static,
     R: 'static,
 {
-    fn detach_and_notify_err(self, cx: &mut WindowContext) {
+    fn detach_and_notify_err(self, window: &mut Window, cx: &mut AppContext) {
         cx.spawn(|mut cx| async move { self.await.notify_async_err(&mut cx) })
             .detach();
     }
@@ -622,14 +622,16 @@ pub trait DetachAndPromptErr<R> {
     fn prompt_err(
         self,
         msg: &str,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
         f: impl FnOnce(&anyhow::Error, &mut WindowContext) -> Option<String> + 'static,
     ) -> Task<Option<R>>;
 
     fn detach_and_prompt_err(
         self,
         msg: &str,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
         f: impl FnOnce(&anyhow::Error, &mut WindowContext) -> Option<String> + 'static,
     );
 }
@@ -641,7 +643,8 @@ where
     fn prompt_err(
         self,
         msg: &str,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
         f: impl FnOnce(&anyhow::Error, &mut WindowContext) -> Option<String> + 'static,
     ) -> Task<Option<R>> {
         let msg = msg.to_owned();
@@ -664,7 +667,8 @@ where
     fn detach_and_prompt_err(
         self,
         msg: &str,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
         f: impl FnOnce(&anyhow::Error, &mut WindowContext) -> Option<String> + 'static,
     ) {
         self.prompt_err(msg, cx, f).detach();

@@ -41,7 +41,8 @@ impl SlashCommand for DeltaSlashCommand {
         _arguments: &[String],
         _cancellation_flag: Arc<AtomicBool>,
         _workspace: Option<WeakModel<Workspace>>,
-        _cx: &mut WindowContext,
+        _window: &mut Window,
+        _cx: &mut AppContext,
     ) -> Task<Result<Vec<ArgumentCompletion>>> {
         Task::ready(Err(anyhow!("this command does not require argument")))
     }
@@ -53,7 +54,7 @@ impl SlashCommand for DeltaSlashCommand {
         context_buffer: BufferSnapshot,
         workspace: WeakModel<Workspace>,
         delegate: Option<Arc<dyn LspAdapterDelegate>>,
-        cx: &mut WindowContext,
+        window: &mut Window, cx: &mut AppContext,
     ) -> Task<SlashCommandResult> {
         let mut paths = HashSet::default();
         let mut file_command_old_outputs = Vec::new();

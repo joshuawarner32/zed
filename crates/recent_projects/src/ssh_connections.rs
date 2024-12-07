@@ -202,10 +202,12 @@ impl SshPrompt {
             ..Default::default()
         };
         let markdown =
-            cx.new_model(|cx| Markdown::new_text(prompt, markdown_style, None, cx, None));
+            cx.new_model(|cx| Markdown::new_text(prompt, markdown_style, None, None, window, cx));
         self.prompt = Some((markdown, tx));
         self.status_message.take();
         cx.focus_view(&self.editor);
+        // todo! get rid of this
+        let cx: &mut ModelContext<Self> = cx;
         cx.notify();
     }
 
@@ -310,7 +312,7 @@ pub(crate) struct SshConnectionHeader {
 }
 
 impl RenderOnce for SshConnectionHeader {
-    fn render(self, cx: &mut WindowContext) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut AppContext) -> impl IntoElement {
         let theme = cx.theme();
 
         let mut header_color = theme.colors().text;
@@ -380,7 +382,7 @@ impl Render for SshConnectionModal {
                     connection_string,
                     nickname,
                 }
-                .render(cx),
+                .render(window, cx),
             )
             .child(
                 div()
@@ -516,7 +518,7 @@ pub fn connect_over_ssh(
     unique_identifier: ConnectionIdentifier,
     connection_options: SshConnectionOptions,
     ui: Model<SshPrompt>,
-    cx: &mut WindowContext,
+    window: &mut Window, cx: &mut AppContext,
 ) -> Task<Result<Option<Model<SshRemoteClient>>>> {
     let window = cx.window_handle();
     let known_password = connection_options.password.clone();
@@ -633,7 +635,7 @@ pub async fn open_ssh_project(
         }
 
         window
-            .update(cx, |workspace, cx| {
+            .update(cx, |workspace, window, cx| {
                 if let Some(client) = workspace.project().read(cx).ssh_client().clone() {
                     ExtensionStore::global(cx)
                         .update(cx, |store, cx| store.register_ssh_client(client, cx));

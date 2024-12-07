@@ -118,7 +118,7 @@ impl StoryWrapper {
 }
 
 impl Render for StoryWrapper {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()

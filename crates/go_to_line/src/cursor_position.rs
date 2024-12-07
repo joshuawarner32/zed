@@ -6,8 +6,8 @@ use settings::{Settings, SettingsSources};
 use std::{fmt::Write, time::Duration};
 use text::{Point, Selection};
 use ui::{
-    div, Button, ButtonCommon, Clickable, FluentBuilder, IntoElement, LabelSize, ParentElement,
-    Render, Tooltip, ModelContext,
+    div, Button, ButtonCommon, Clickable, FluentBuilder, IntoElement, LabelSize, ModelContext,
+    ParentElement, Render, Tooltip,
 };
 use util::paths::FILE_ROW_COLUMN_DELIMITER;
 use workspace::{item::ItemHandle, StatusItemView, Workspace};
@@ -168,6 +168,7 @@ impl Render for CursorPosition {
                         Tooltip::for_action(
                             "Go to Line/Column",
                             &editor::actions::ToggleGoToLine,
+                            window,
                             cx,
                         )
                     }),

@@ -41,7 +41,7 @@ impl PickerDelegate for Delegate {
         self.candidates.len()
     }
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Test".into()
     }
 
@@ -113,7 +113,7 @@ impl PickerDelegate for Delegate {
 }
 
 impl PickerStory {
-    pub fn new(cx: &mut WindowContext) -> Model<Self> {
+    pub fn new(window: &mut Window, cx: &mut AppContext) -> Model<Self> {
         cx.new_model(|cx| {
             cx.bind_keys([
                 KeyBinding::new("up", menu::SelectPrev, Some("picker")),
@@ -189,7 +189,7 @@ impl PickerStory {
                     delegate.update_matches("".into(), cx).detach();
 
                     let picker = Picker::uniform_list(delegate, cx);
-                    picker.focus(cx);
+                    picker.focus(window, cx);
                     picker
                 }),
             }

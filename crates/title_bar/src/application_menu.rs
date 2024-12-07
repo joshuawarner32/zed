@@ -13,7 +13,7 @@ impl ApplicationMenu {
 }
 
 impl Render for ApplicationMenu {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         PopoverMenu::new("application-menu")
             .menu(move |window, cx| {
                 ContextMenu::build(window, cx, move |menu, window, cx| {

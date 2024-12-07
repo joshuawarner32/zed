@@ -83,7 +83,7 @@ impl TabSwitcher {
         let project = workspace.project().clone();
         workspace.toggle_modal(cx, |cx| {
             let delegate =
-                TabSwitcherDelegate::new(project, action, cx.view().downgrade(), weak_pane, cx);
+                TabSwitcherDelegate::new(project, action, cx.handle().downgrade(), weak_pane, cx);
             TabSwitcher::new(delegate, cx)
         });
     }
@@ -108,7 +108,7 @@ impl TabSwitcher {
             if self.picker.read(cx).delegate.matches.is_empty() {
                 cx.emit(DismissEvent)
             } else {
-                cx.dispatch_action(menu::Confirm.boxed_clone());
+                window.dispatch_action(menu::Confirm.boxed_clone());
             }
         }
     }
@@ -186,7 +186,7 @@ impl TabSwitcherDelegate {
                 | PaneEvent::RemovedItem { .. }
                 | PaneEvent::Remove { .. } => tab_switcher.picker.update(cx, |picker, cx| {
                     let selected_item_id = picker.delegate.selected_item_id();
-                    picker.delegate.update_matches(cx);
+                    picker.delegate.update_matches(window, cx);
                     if let Some(item_id) = selected_item_id {
                         picker.delegate.select_item(item_id, cx);
                     }
@@ -198,7 +198,7 @@ impl TabSwitcherDelegate {
         .detach();
     }
 
-    fn update_matches(&mut self, cx: &mut WindowContext) {
+    fn update_matches(&mut self, window: &mut Window, cx: &mut AppContext) {
         self.matches.clear();
         let Some(pane) = self.pane.upgrade() else {
             return;
@@ -281,11 +281,11 @@ impl TabSwitcherDelegate {
 impl PickerDelegate for TabSwitcherDelegate {
     type ListItem = ListItem;
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut Context) -> Arc<str> {
         Arc::default()
     }
 
-    fn no_matches_text(&self, _cx: &mut WindowContext) -> SharedString {
+    fn no_matches_text(&self, _window: &mut Window, _cx: &mut Context) -> SharedString {
         "No tabs".into()
     }
 
@@ -311,7 +311,7 @@ impl PickerDelegate for TabSwitcherDelegate {
         _raw_query: String,
         cx: &mut ModelContext<Picker<Self>>,
     ) -> Task<()> {
-        self.update_matches(cx);
+        self.update_matches(window, cx);
         Task::ready(())
     }
 

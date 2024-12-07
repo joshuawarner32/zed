@@ -170,7 +170,7 @@ impl PickerDelegate for TasksModalDelegate {
                         None => {
                             let Ok((worktree, location)) =
                                 picker.delegate.workspace.update(cx, |workspace, cx| {
-                                    active_item_selection_properties(workspace, cx)
+                                    active_item_selection_properties(workspace, window, cx)
                                 })
                             else {
                                 return Vec::new();
@@ -442,7 +442,7 @@ impl PickerDelegate for TasksModalDelegate {
                 .child(
                     left_button
                         .map(|(label, action)| {
-                            let keybind = KeyBinding::for_action(&*action, cx);
+                            let keybind = KeyBinding::for_action(&*action, window, cx);
 
                             Button::new("edit-current-task", label)
                                 .label_size(LabelSize::Small)
@@ -461,21 +461,24 @@ impl PickerDelegate for TasksModalDelegate {
                             secondary: current_modifiers.secondary(),
                         }
                         .boxed_clone();
-                        this.children(KeyBinding::for_action(&*action, cx).map(|keybind| {
-                            let spawn_oneshot_label = if current_modifiers.secondary() {
-                                "Spawn Oneshot Without History"
-                            } else {
-                                "Spawn Oneshot"
-                            };
+                        this.children(KeyBinding::for_action(&*action, cx).map(
+                            |keybinwindow, d| {
+                                let spawn_oneshot_label = if current_modifiers.secondary() {
+                                    "Spawn Oneshot Without History"
+                                } else {
+                                    "Spawn Oneshot"
+                                };
 
-                            Button::new("spawn-onehshot", spawn_oneshot_label)
-                                .label_size(LabelSize::Small)
-                                .key_binding(keybind)
-                                .on_click(move |_, cx| cx.dispatch_action(action.boxed_clone()))
-                        }))
+                                Button::new("spawn-onehshot", spawn_oneshot_label)
+                                    .label_size(LabelSize::Small)
+                                    .key_binding(keybind)
+                                    .on_click(move |_, cx| cx.dispatch_action(action.boxed_clone()))
+                            },
+                        ))
                     } else if current_modifiers.secondary() {
-                        this.children(KeyBinding::for_action(&menu::SecondaryConfirm, cx).map(
-                            |keybind| {
+                        this.children(
+                            KeyBinding::for_action(&menu::SecondaryConfirm, cx).window,
+                            map(|keybind| {
                                 let label = if is_recent_selected {
                                     "Rerun Without History"
                                 } else {
@@ -487,20 +490,22 @@ impl PickerDelegate for TasksModalDelegate {
                                     .on_click(move |_, cx| {
                                         cx.dispatch_action(menu::SecondaryConfirm.boxed_clone())
                                     })
+                            }),
+                        )
+                    } else {
+                        this.children(KeyBinding::for_action(&menu::Confirm, cx).map(
+                            |keybinwindow, d| {
+                                let run_entry_label =
+                                    if is_recent_selected { "Rerun" } else { "Spawn" };
+
+                                Button::new("spawn", run_entry_label)
+                                    .label_size(LabelSize::Small)
+                                    .key_binding(keybind)
+                                    .on_click(|_, cx| {
+                                        cx.dispatch_action(menu::Confirm.boxed_clone());
+                                    })
                             },
                         ))
-                    } else {
-                        this.children(KeyBinding::for_action(&menu::Confirm, cx).map(|keybind| {
-                            let run_entry_label =
-                                if is_recent_selected { "Rerun" } else { "Spawn" };
-
-                            Button::new("spawn", run_entry_label)
-                                .label_size(LabelSize::Small)
-                                .key_binding(keybind)
-                                .on_click(|_, cx| {
-                                    cx.dispatch_action(menu::Confirm.boxed_clone());
-                                })
-                        }))
                     }
                 })
                 .into_any_element(),

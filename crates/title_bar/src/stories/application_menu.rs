@@ -10,7 +10,7 @@ pub struct ApplicationMenuStory {
 }
 
 impl ApplicationMenuStory {
-    pub fn new(cx: &mut WindowContext) -> Self {
+    pub fn new(window: &mut Window, cx: &mut AppContext) -> Self {
         Self {
             menu: cx.new_model(ApplicationMenu::new),
         }
@@ -18,7 +18,7 @@ impl ApplicationMenuStory {
 }
 
 impl Render for ApplicationMenuStory {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         Story::container()
             .child(Story::title_for::<ApplicationMenu>())
             .child(StorySection::new().child(StoryItem::new(

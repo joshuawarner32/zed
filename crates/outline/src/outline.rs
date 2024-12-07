@@ -10,7 +10,7 @@ use editor::{
 use fuzzy::StringMatch;
 use gpui::{
     div, rems, AppContext, DismissEvent, EventEmitter, FocusHandle, FocusableView, HighlightStyle,
-    ParentElement, Point, Render, Styled, StyledText, Task, TextStyle, View, ModelContext,
+    ModelContext, ParentElement, Point, Render, Styled, StyledText, Task, TextStyle, View,
     VisualContext, WeakView, WindowContext,
 };
 use language::{Outline, OutlineItem};
@@ -26,7 +26,7 @@ pub fn init(cx: &mut AppContext) {
     cx.observe_new_models(OutlineView::register).detach();
 }
 
-pub fn toggle(editor: Model<Editor>, _: &ToggleOutline, cx: &mut WindowContext) {
+pub fn toggle(editor: Model<Editor>, _: &ToggleOutline, window: &mut Window, cx: &mut AppContext) {
     let outline = editor
         .read(cx)
         .buffer()
@@ -61,7 +61,7 @@ impl ModalView for OutlineView {
 }
 
 impl Render for OutlineView {
-    fn render(&mut self, _cx: &mut ModelContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut ModelContext<Self>) -> impl IntoElement {
         v_flex().w(rems(34.)).child(self.picker.clone())
     }
 }
@@ -69,7 +69,7 @@ impl Render for OutlineView {
 impl OutlineView {
     fn register(editor: &mut Editor, cx: &mut ModelContext<Editor>) {
         if editor.mode() == EditorMode::Full {
-            let handle = cx.view().downgrade();
+            let handle = cx.handle().downgrade();
             editor
                 .register_action(move |action, cx| {
                     if let Some(editor) = handle.upgrade() {
@@ -85,7 +85,7 @@ impl OutlineView {
         editor: Model<Editor>,
         cx: &mut ModelContext<Self>,
     ) -> OutlineView {
-        let delegate = OutlineViewDelegate::new(cx.view().downgrade(), outline, editor, cx);
+        let delegate = OutlineViewDelegate::new(cx.handle().downgrade(), outline, editor, cx);
         let picker =
             cx.new_model(|cx| Picker::uniform_list(delegate, cx).max_height(Some(vh(0.75, cx))));
         OutlineView { picker }
@@ -122,7 +122,7 @@ impl OutlineViewDelegate {
         }
     }
 
-    fn restore_active_editor(&mut self, cx: &mut WindowContext) {
+    fn restore_active_editor(&mut self, window: &mut Window, cx: &mut AppContext) {
         self.active_editor.update(cx, |editor, cx| {
             editor.clear_row_highlights::<OutlineRowHighlights>();
             if let Some(scroll_position) = self.prev_scroll_position {
@@ -160,7 +160,7 @@ impl OutlineViewDelegate {
 impl PickerDelegate for OutlineViewDelegate {
     type ListItem = ListItem;
 
-    fn placeholder_text(&self, _cx: &mut WindowContext) -> Arc<str> {
+    fn placeholder_text(&self, _window: &mut Window, _cx: &mut AppContext) -> Arc<str> {
         "Search buffer symbols...".into()
     }
 
@@ -172,7 +172,11 @@ impl PickerDelegate for OutlineViewDelegate {
         self.selected_match_index
     }
 
-    fn set_selected_index(&mut self, ix: usize, cx: &mut ModelContext<Picker<OutlineViewDelegate>>) {
+    fn set_selected_index(
+        &mut self,
+        ix: usize,
+        cx: &mut ModelContext<Picker<OutlineViewDelegate>>,
+    ) {
         self.set_selected_index(ix, true, cx);
     }
 
@@ -253,7 +257,7 @@ impl PickerDelegate for OutlineViewDelegate {
                     s.select_ranges([rows.start..rows.start])
                 });
                 active_editor.clear_row_highlights::<OutlineRowHighlights>();
-                active_editor.focus(cx);
+                active_editor.focus(window);
             }
         });
 

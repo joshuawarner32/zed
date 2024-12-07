@@ -4,7 +4,7 @@ use cursor_position::LineIndicatorFormat;
 use editor::{scroll::Autoscroll, Editor};
 use gpui::{
     div, prelude::*, AnyWindowHandle, AppContext, DismissEvent, EventEmitter, FocusHandle,
-    FocusableView, Render, SharedString, Styled, Subscription, View, ModelContext, VisualContext,
+    FocusableView, ModelContext, Render, SharedString, Styled, Subscription, View, VisualContext,
 };
 use settings::Settings;
 use text::{Bias, Point};
@@ -39,9 +39,9 @@ enum GoToLineRowHighlights {}
 
 impl GoToLine {
     fn register(editor: &mut Editor, cx: &mut ModelContext<Editor>) {
-        let handle = cx.view().downgrade();
+        let handle = cx.handle().downgrade();
         editor
-            .register_action(move |_: &editor::actions::ToggleGoToLine, cx| {
+            .register_action(move |_: &editor::actions::ToggleGoToLine, window, cx| {
                 let Some(editor) = handle.upgrade() else {
                     return;
                 };
@@ -164,7 +164,7 @@ impl GoToLine {
                 editor.change_selections(Some(Autoscroll::center()), cx, |s| {
                     s.select_ranges([point..point])
                 });
-                editor.focus(cx);
+                editor.focus(window);
                 cx.notify();
             });
             self.prev_scroll_position.take();

@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use anyhow::Context as _;
 use gpui::{
     canvas, div, fill, img, opaque_grey, point, size, AnyElement, AppContext, Bounds, EventEmitter,
-    FocusHandle, FocusableView, InteractiveElement, IntoElement, Model, ObjectFit, ParentElement,
-    Render, Styled, Task, View, ModelContext, VisualContext, WeakView, WindowContext,
+    FocusHandle, FocusableView, InteractiveElement, IntoElement, Model, ModelContext, ObjectFit,
+    ParentElement, Render, Styled, Task, View, VisualContext, WeakView, WindowContext,
 };
 use persistence::IMAGE_VIEWER;
 use theme::Theme;
@@ -203,7 +203,8 @@ impl SerializableItem for ImageView {
     fn cleanup(
         workspace_id: WorkspaceId,
         alive_items: Vec<ItemId>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<gpui::Result<()>> {
         cx.spawn(|_| IMAGE_VIEWER.delete_unloaded_items(workspace_id, alive_items))
     }
@@ -242,7 +243,10 @@ impl FocusableView for ImageView {
 impl Render for ImageView {
     fn render(&mut self, cx: &mut ModelContext<Self>) -> impl IntoElement {
         let image = self.image_item.read(cx).image.clone();
-        let checkered_background = |bounds: Bounds<Pixels>, _, cx: &mut WindowContext| {
+        let checkered_background = |bounds: Bounds<Pixels>,
+                                    _,
+                                    window: &mut Window,
+                                    cx: &mut AppContext| {
             let square_size = 32.0;
 
             let start_y = bounds.origin.y.0;

@@ -46,7 +46,8 @@ impl SlashCommand for StreamingExampleSlashCommand {
         _arguments: &[String],
         _cancel: Arc<AtomicBool>,
         _workspace: Option<WeakModel<Workspace>>,
-        _cx: &mut WindowContext,
+        _window: &mut Window,
+        _cx: &mut AppContext,
     ) -> Task<Result<Vec<ArgumentCompletion>>> {
         Task::ready(Ok(Vec::new()))
     }
@@ -58,7 +59,8 @@ impl SlashCommand for StreamingExampleSlashCommand {
         _context_buffer: BufferSnapshot,
         _workspace: WeakModel<Workspace>,
         _delegate: Option<Arc<dyn LspAdapterDelegate>>,
-        cx: &mut WindowContext,
+        window: &mut Window,
+        cx: &mut AppContext,
     ) -> Task<SlashCommandResult> {
         let (events_tx, events_rx) = mpsc::unbounded();
         cx.background_executor()

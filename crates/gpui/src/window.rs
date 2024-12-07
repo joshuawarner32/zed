@@ -2649,6 +2649,28 @@ impl Window {
         ));
     }
 
+    /// Register a listener to be called when the given focus handle receives focus.
+    /// Returns a subscription and persists until the subscription is dropped.
+    pub fn on_focus(
+        &mut self,
+        handle: &FocusHandle,
+        cx: &mut AppContext,
+        mut listener: impl FnMut(&mut Window, &mut AppContext) + 'static,
+    ) -> Subscription {
+        let focus_id = handle.id;
+        let (subscription, activate) =
+            self.new_focus_listener(Box::new(move |event, window, cx| {
+                if event.previous_focus_path.last() != Some(&focus_id)
+                    && event.current_focus_path.last() == Some(&focus_id)
+                {
+                    listener(window, cx)
+                }
+                true
+            }));
+        cx.defer(|_| activate());
+        subscription
+    }
+
     /// Register a listener to be called when the given focus handle loses focus.
     /// Returns a subscription and persists until the subscription is dropped.
     pub fn on_blur(
@@ -3506,6 +3528,30 @@ impl Window {
             .filter_map(|node_id| dispatch_tree.node(node_id).context.clone())
             .collect();
         dispatch_tree.bindings_for_action(action, &context_stack)
+    }
+
+    /// Returns a generic event listener that invokes the given listener with the view and context associated with the given view handle.
+    pub fn listener_for<V: 'static, E>(
+        &self,
+        view: &Model<V>,
+        f: impl Fn(&mut V, &E, &mut Window, &mut ModelContext<V>) + 'static,
+    ) -> impl Fn(&E, &mut Window, &mut AppContext) + 'static {
+        let view = view.downgrade();
+        move |e: &E, window: &mut Window, cx: &mut AppContext| {
+            view.update(cx, |view, cx| f(view, e, window, cx)).ok();
+        }
+    }
+
+    /// Returns a generic handler that invokes the given handler with the view and context associated with the given view handle.
+    pub fn handler_for<V: 'static>(
+        &self,
+        view: &Model<V>,
+        f: impl Fn(&mut V, &mut Window, &mut ModelContext<V>) + 'static,
+    ) -> impl Fn(&mut Window, &mut AppContext) {
+        let view = view.downgrade();
+        move |window: &mut Window, cx: &mut AppContext| {
+            view.update(cx, |view, cx| f(view, window, cx)).ok();
+        }
     }
 
     /// Register a callback that can interrupt the closing of the current window based the returned boolean.
